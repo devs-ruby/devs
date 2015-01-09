@@ -37,7 +37,7 @@ module DEVS
       end
 
       def publish(*args)
-        @instance.send(@method, *args)
+        @instance.__send__(@method, *args)
       end
     end
   end
