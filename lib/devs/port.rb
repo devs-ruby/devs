@@ -37,7 +37,7 @@ module DEVS
         raise(ArgumentError, "type attribute must be either of #{Port.types}")
       end
       @type = type
-      @name = name.to_sym
+      @name = name
       @host = host
       @outgoing = nil
     end

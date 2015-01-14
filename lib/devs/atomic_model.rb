@@ -167,42 +167,13 @@ module DEVS
       self.output
       @bag.clear
 
-      i = 0
-      while i < @output_ports.size
-        port = @output_ports[i]
+      @output_ports.each_value do |port|
         value = port.pick_up
-        unless value.nil?
-          @bag << Message.new(value, port)
-        end
-        i += 1
+        @bag << Message.new(value, port) unless value.nil?
       end
 
       @bag
     end
-
-    # Returns a {Port} given a name or an instance and checks it.
-    #
-    # @api private
-    # @param port [Port, String, Symbol] the port or its name
-    # @return [Port] the matching port
-    # @raise [ArgumentError] if the given port is nil or doesn't exists
-    # @raise [InvalidPortHostError] if the given port doesn't belong to this
-    #   model
-    def ensure_port(port)
-      raise ArgumentError, "port argument cannot be nil" if port.nil?
-      unless port.kind_of?(Port)
-        port = self[port]
-        raise ArgumentError, "the given port doesn't exists" if port.nil?
-      end
-
-      unless port.host == self
-        raise InvalidPortHostError, "The given port doesn't belong to this \
-        model"
-      end
-
-      port
-    end
-    protected :ensure_port
 
     # Finds and checks if the given port is an input port
     #
@@ -214,7 +185,15 @@ module DEVS
     #   model
     # @raise [InvalidPortTypeError] if the given port isn't an input port
     def ensure_input_port(port)
-      port = ensure_port(port)
+      raise ArgumentError, "port argument cannot be nil" if port.nil?
+      unless port.kind_of?(Port)
+        port = @input_ports[port]
+        raise ArgumentError, "the given port doesn't exists" if port.nil?
+      end
+      unless port.host == self
+        raise InvalidPortHostError, "The given port doesn't belong to this \
+        model"
+      end
       unless port.input?
         raise InvalidPortTypeError, "The given port isn't an input port"
       end
@@ -232,7 +211,15 @@ module DEVS
     #   model
     # @raise [InvalidPortTypeError] if the given port isn't an output port
     def ensure_output_port(port)
-      port = ensure_port(port)
+      raise ArgumentError, "port argument cannot be nil" if port.nil?
+      unless port.kind_of?(Port)
+        port = @output_ports[port]
+        raise ArgumentError, "the given port doesn't exists" if port.nil?
+      end
+      unless port.host == self
+        raise InvalidPortHostError, "The given port doesn't belong to this \
+        model"
+      end
       unless port.output?
         raise InvalidPortTypeError, "The given port isn't an output port"
       end

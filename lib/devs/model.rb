@@ -29,8 +29,16 @@ module DEVS
     # @param name [String, Symbol] the name of the model
     def initialize(name = nil)
       @name = name.to_sym unless name == nil
-      @input_ports = []
-      @output_ports = []
+      @input_ports = {}
+      @output_ports = {}
+    end
+
+    def input_ports
+      @input_ports.values
+    end
+
+    def output_ports
+      @output_ports.values
     end
 
     def name=(name)
@@ -77,7 +85,7 @@ module DEVS
     #
     # @return [Array<String, Symbol>] the name list
     def input_ports_names
-      @input_ports.map { |port| port.name }
+      @input_ports.keys
     end
 
     # Find the input {Port} identified by the given <tt>name</tt>
@@ -85,14 +93,14 @@ module DEVS
     # @param name [String, Symbol] the port name
     # @return [Port] the matching port, nil otherwise
     def find_input_port_by_name(name)
-      @input_ports.find { |port| port.name == name }
+      @input_ports[name]
     end
 
     # Returns the list of output ports' names
     #
     # @return [Array<String, Symbol>] the name list
     def output_ports_names
-      @output_ports.map { |port| port.name }
+      @output_ports.keys
     end
 
     # Find the output {Port} identified by the given <tt>name</tt>
@@ -100,14 +108,7 @@ module DEVS
     # @param name [String, Symbol] the port name
     # @return [Port] the matching port, nil otherwise
     def find_output_port_by_name(name)
-      @output_ports.find { |port| port.name == name }
-    end
-
-    # Find any {Port} identified by the given <i>name</i>
-    #
-    # @return [Port] the matching port if any, nil otherwise
-    def [](name)
-      find_input_port_by_name(name) || find_output_port_by_name(name)
+      @output_ports[name]
     end
 
     # @return [String]
@@ -145,8 +146,8 @@ module DEVS
       unless port.kind_of?(Port)
         name = port
         port = case type
-        when :output then find_output_port_by_name(name)
-        when :input then find_input_port_by_name(name)
+        when :output then @output_ports[name]
+        when :input then @input_ports[name]
         end
 
         if port.nil?
@@ -158,24 +159,28 @@ module DEVS
     end
 
     def add_port(type, *names)
-      ivar, existing = case type
-      when :input  then [@input_ports, input_ports_names]
-      when :output then [@output_ports, output_ports_names]
+      ports = case type
+      when :input then @input_ports
+      when :output then @output_ports
       end
 
-      ports = []
-      names.each do |n|
-        if existing.include?(n.to_sym)
+      new_ports = []
+      i = 0
+      while i < names.size
+        n = names[i].to_sym
+        if ports.has_key?(n)
           DEVS.logger.warn(
             "specified #{type} port #{n} already exists for #{self}. skipping..."
           ) if DEVS.logger
         else
-          ports << Port.new(self, type, n)
+          p = Port.new(self, type, n)
+          ports[n] = p
+          new_ports << p
         end
+        i += 1
       end
 
-      ivar.concat(ports)
-      ports.size == 1 ? ports.first : ports
+      new_ports.size == 1 ? new_ports.first : new_ports
     end
   end
 end
