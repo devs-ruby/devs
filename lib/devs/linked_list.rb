@@ -26,6 +26,10 @@ module DEVS
       end
     end
 
+    def inspect
+      "<#{self.class}: size=#{@size}, head=#{@head}, tail=#{@tail}>"
+    end
+
     def clear
       @head = @tail = nil
       @size = 0
@@ -206,6 +210,7 @@ module DEVS
         new_node.next = node
         node.previous = new_node
       end
+      @size += 1
       new_node
     end
 
@@ -225,6 +230,7 @@ module DEVS
         new_node.previous = node
         node.next = new_node
       end
+      @size += 1
       new_node
     end
 
@@ -239,7 +245,7 @@ module DEVS
     #
     # @return [Node] the node wrapping the first element
     def last
-      @last
+      @tail
     end
 
     # Calls the given block once for each element in <tt>self</tt>, passing that
