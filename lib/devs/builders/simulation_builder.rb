@@ -43,15 +43,15 @@ module DEVS
 
     def scheduler(name)
       DEVS.scheduler = case name
-      when :ladder_queue then LadderQueueScheduler
-      when :binary_heap then BinaryHeapScheduler
-      when :minimal_list then MinimalListScheduler
-      when :sorted_list then SortedListScheduler
-      when :splay_tree then SplayTreeScheduler
-      when :calendar_queue then CalendarQueueScheduler
+      when :ladder_queue then LadderQueue
+      when :binary_heap then BinaryHeap
+      when :minimal_list then MinimalList
+      when :sorted_list then SortedList
+      when :splay_tree then SplayTree
+      when :calendar_queue then CalendarQueue
       else
         DEVS.logger.warn("scheduler #{@opts[:scheduler]} unknown, defaults to LadderQueueScheduler") if DEVS.logger
-        LadderQueueScheduler
+        LadderQueue
       end
     end
 

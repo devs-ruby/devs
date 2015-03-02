@@ -272,6 +272,10 @@ module DEVS
       @size - (@top.size + @bottom.size)
     end
 
+    def empty?
+      @size == 0
+    end
+
     def <<(obj)
       timestamp = obj.time_next
 
@@ -287,9 +291,10 @@ module DEVS
 
         # if timestamp is lower than the maximum timestamp from bottom, this
         # this event should be in bottom.
-        should_be_in_bottom = @bottom.size > 0 && timestamp <= @bottom.first.time_next
+        #should_be_in_bottom = @bottom.size > 0 && timestamp <= @bottom.first.time_next
 
-        if x < @active_rungs && !should_be_in_bottom
+        #if x < @active_rungs && !should_be_in_bottom
+        if timestamp < @rungs[x].current_timestamp && x < @active_rungs
           # add to appropriate rung
           @rungs[x] << obj
         else
@@ -335,10 +340,13 @@ module DEVS
       self
     end
     alias_method :push, :<<
+    alias_method :enqueue, :<<
 
     def delete(obj)
       timestamp = obj.time_next
       item = nil
+
+      prepare! if @bottom.empty?
 
       if timestamp > @top_start
         index = @top.index(obj)
@@ -372,6 +380,17 @@ module DEVS
       @size -= 1
       @bottom.pop
     end
+    alias_method :dequeue, :pop
+
+    def pop_simultaneous
+      a = []
+      if @size > 0
+        time = self.peek.time_next
+        a << self.pop while @size > 0 && self.peek.time_next == time
+      end
+      a
+    end
+    alias_method :dequeue_simultaneous, :pop_simultaneous
 
     def clear
       @top.clear

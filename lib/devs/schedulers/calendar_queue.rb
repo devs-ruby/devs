@@ -83,6 +83,7 @@ module DEVS
       self
     end
     alias_method :push, :<<
+    alias_method :enqueue, :<<
 
     def delete(obj)
       tn = obj.time_next
@@ -200,6 +201,17 @@ module DEVS
       @bucket_top = (((lowest / @width) + 1).to_i * @width + (0.5 * @width)).to_f
       pop # resume search at min bucket
     end
+    alias_method :dequeue, :pop
+
+    def pop_simultaneous
+      a = []
+      if @size > 0
+        time = self.peek.time_next
+        a << self.pop while @size > 0 && self.peek.time_next == time
+      end
+      a
+    end
+    alias_method :dequeue_simultaneous, :pop_simultaneous
 
     private
     # Initializes a bucket array within
