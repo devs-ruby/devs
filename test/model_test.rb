@@ -22,8 +22,8 @@ class TestModel < MiniTest::Test
     pin1 = @model.send(:find_or_create_input_port_if_necessary, :newin)
     pout1 = @model.send(:find_or_create_output_port_if_necessary, :newout)
 
-    assert_same @model[:newin], pin1
-    assert_same @model[:newout], pout1
+    assert_same @model.find_input_port_by_name(:newin), pin1
+    assert_same @model.find_output_port_by_name(:newout), pout1
   end
 
   def test_neither_atomic_or_coupled
