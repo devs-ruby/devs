@@ -17,7 +17,7 @@ module DEVS
           min = tn if tn < min
           i += 1
         end
-        @scheduler = if DEVS.scheduler == SortedListScheduler || DEVS.scheduler == MinimalListScheduler
+        @scheduler = if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
           DEVS.scheduler.new(@children)
         else
           DEVS.scheduler.new(selected)
@@ -34,11 +34,12 @@ module DEVS
         @time_last = time
 
         @bag.clear
-        imm = if DEVS.scheduler == SortedListScheduler || DEVS.scheduler == MinimalListScheduler
-          read_imminent_children
-        else
-          imminent_children
-        end
+        imm = @scheduler.pop_simultaneous
+        # imm = if DEVS.scheduler == SortedListScheduler || DEVS.scheduler == MinimalListScheduler
+        #   read_imminent_children
+        # else
+        #   imminent_children
+        # end
 
         i = 0
         while i < imm.size
@@ -108,22 +109,22 @@ module DEVS
         while i < influencees.size
           receiver = influencees[i]
           sub_bag = @influencees[receiver]
-          if DEVS.scheduler == SortedListScheduler || DEVS.scheduler == MinimalListScheduler
+          if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
             receiver.remainder(time, sub_bag)
           else
             tn = receiver.time_next
             # before trying to cancel a receiver, test if time is not strictly
-            # equail to its time_next. If true, it means that its model will
+            # equal to its time_next. If true, it means that its model will
             # receiver either an internal_transition or a confluent transition,
             # and that the receiver is no longer in the scheduler
-            @scheduler.cancel(receiver) if tn < DEVS::INFINITY && time != tn
+            @scheduler.delete(receiver) if tn < DEVS::INFINITY && time != tn
             tn = receiver.remainder(time, sub_bag)
-            @scheduler.insert(receiver) if tn < DEVS::INFINITY
+            @scheduler.push(receiver) if tn < DEVS::INFINITY
           end
           sub_bag.clear
           i += 1
         end
-        @scheduler.reschedule! if DEVS.scheduler == SortedListScheduler || DEVS.scheduler == MinimalListScheduler
+        @scheduler.reschedule! if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
         @synchronize.clear
 
         @time_last = time

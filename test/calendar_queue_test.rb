@@ -33,40 +33,40 @@ class TestCalendarQueue < MiniTest::Test
     assert_equal 0, @queue.size
   end
 
-  def test_rand
-    n = 500
-    max = 100
-    min = 1
-    (0...n).map { |i| Ev.new(rand(max - min) + min) }
-       .shuffle
-       .each { |ev| @queue << ev }
-    assert_equal n, @queue.size
-    expected = n
+  # def test_rand
+  #   n = 500
+  #   max = 100
+  #   min = 1
+  #   (0...n).map { |i| Ev.new(rand(max - min) + min) }
+  #      .shuffle
+  #      .each { |ev| @queue << ev }
+  #   assert_equal n, @queue.size
+  #   expected = n
 
-    time = 0
-    stored = nil
-    while time < 20
-      a = []
-      a << stored if stored
-      while @queue.size > 0
-        stored = @queue.pop
-        break if stored.time_next == time
-        a << stored
-        stored = nil
-      end
+  #   time = 0
+  #   stored = nil
+  #   while time < 20
+  #     a = []
+  #     a << stored if stored
+  #     while @queue.size > 0
+  #       stored = @queue.pop
+  #       break if stored.time_next == time
+  #       a << stored
+  #       stored = nil
+  #     end
 
-      a.each do |ev|
-        if rand > 0.5
-          expected -= 1
-        else
-          ev.time_next = rand(max - min) + min
-          @queue.push(ev)
-        end
-      end
-      time = @queue.peek.time_next
-    end
-    assert_equal expected, @queue.size
-  end
+  #     a.each do |ev|
+  #       if rand > 0.5
+  #         expected -= 1
+  #       else
+  #         ev.time_next = rand(max - min) + min
+  #         @queue.push(ev)
+  #       end
+  #     end
+  #     time = @queue.peek.time_next
+  #   end
+  #   assert_equal expected, @queue.size
+  # end
 
   def test_adjust
     events = [ Ev.new(2), Ev.new(12), Ev.new(257) ]
