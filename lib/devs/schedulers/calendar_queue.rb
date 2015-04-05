@@ -46,7 +46,7 @@ module DEVS
       i = i % @buckets.size # actual bucket
 
       bucket = @buckets[i]
-      if bucket.empty?
+      if bucket.empty? || bucket.last.time_next > tn
         bucket << obj
       else
         j = bucket.size - 1
@@ -55,22 +55,22 @@ module DEVS
       end
 
       # check last priority and update last bucket accordingly
-      b = @last_bucket
-      cur_bucket = @buckets[b]
-      btop = @bucket_top
-      j = 0
-      while j < @buckets.size-1 && @buckets[b].empty?
-        j+=1
-        b = (b+1) % @buckets.size
-        btop += @width
-      end
-      cur_bucket = @buckets[b]
-      if cur_bucket.size > 0 && tn < cur_bucket.last.time_next && cur_bucket.last.time_next < btop
-        #info("CQ push: ts #{tn} < cur_bucket next ts #{cur_bucket.last.time_next} (btop at #{btop}). update bucket from #{@last_bucket} to #{i}") if DEVS.logger
-        @last_bucket = i.to_i
-        @last_priority = bucket.last.time_next
-        @bucket_top = (((@last_priority / @width) + 1).to_i * @width + (0.5 * @width)).to_f
-      end
+        # b = @last_bucket
+        # cur_bucket = @buckets[b]
+        # btop = @bucket_top
+        # j = 0
+        # while j < @buckets.size-1 && @buckets[b].empty?
+        #   j+=1
+        #   b = (b+1) % @buckets.size
+        #   btop += @width
+        # end
+        # cur_bucket = @buckets[b]
+        # if cur_bucket.size > 0 && tn < cur_bucket.last.time_next && cur_bucket.last.time_next < btop
+        #   #info("CQ push: ts #{tn} < cur_bucket next ts #{cur_bucket.last.time_next} (btop at #{btop}). update bucket from #{@last_bucket} to #{i}") if DEVS.logger
+        #   @last_bucket = i.to_i
+        #   @last_priority = bucket.last.time_next
+        #   @bucket_top = (((@last_priority / @width) + 1).to_i * @width + (0.5 * @width)).to_f
+        # end
 
       @size += 1
 
@@ -83,6 +83,7 @@ module DEVS
       self
     end
     alias_method :push, :<<
+    alias_method :enqueue, :<<
 
     def delete(obj)
       tn = obj.time_next
@@ -200,6 +201,17 @@ module DEVS
       @bucket_top = (((lowest / @width) + 1).to_i * @width + (0.5 * @width)).to_f
       pop # resume search at min bucket
     end
+    alias_method :dequeue, :pop
+
+    def pop_simultaneous
+      a = []
+      if @size > 0
+        time = self.peek.time_next
+        a << self.pop while @size > 0 && self.peek.time_next == time
+      end
+      a
+    end
+    alias_method :dequeue_simultaneous, :pop_simultaneous
 
     private
     # Initializes a bucket array within

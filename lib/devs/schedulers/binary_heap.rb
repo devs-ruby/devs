@@ -5,7 +5,7 @@ module DEVS
   # the comparison. Also, retrieving an element will always return the one with
   # the highest priority. The internal queue is kept in the reverse order.
   #
-  class BinaryHeapScheduler
+  class BinaryHeap
     def initialize(elements = nil)
       @que = []
       replace(elements) if elements
@@ -20,17 +20,17 @@ module DEVS
       @que.size
     end
 
-    def insert(processor)
+    def empty?
+      @que.size == 0
+    end
+
+    def enqueue(processor)
       @que << processor
       reheap(@que.size - 1)
       self
     end
-
-    def adjust(processor)
-      idx = index(processor)
-      reheap(idx) unless idx.nil?
-      self
-    end
+    alias_method :push, :enqueue
+    alias_method :<<, :enqueue
 
     def index(processor)
       idx = nil
@@ -46,7 +46,7 @@ module DEVS
     end
     private :index
 
-    def cancel(processor)
+    def delete(processor)
       tn = processor.time_next
       elmt = nil
       if @que.last.time_next - @que.first.time_next == 0
@@ -65,37 +65,24 @@ module DEVS
       elmt
     end
 
-    def read
-      return nil if empty?
-      @que.last.time_next
+    def peek
+      @que.last
     end
 
-    def imminent(time)
+    def pop
+      @que.pop
+    end
+    alias_method :dequeue, :pop
+
+    def pop_simultaneous
       a = []
-      a << @que.pop while !@que.empty? && @que.last.time_next == time
+      if @que.size > 0
+        time = @que.last.time_next
+        a << @que.pop while !@que.empty? && @que.last.time_next == time
+      end
       a
     end
-
-    def read_imminent(time)
-      ary = []
-      i = @que.size - 1
-
-      while i >= 0
-        elt = @que[i]
-        if elt.time_next == time
-          ary << elt
-          i -= 1
-        else
-          break
-        end
-      end
-
-      ary
-    end
-
-    def empty?
-      @que.empty?
-    end
+    alias_method :dequeue_simultaneous, :pop_simultaneous
 
     def to_a
       @que.dup
@@ -108,13 +95,13 @@ module DEVS
 
     def concat(elements)
       if empty?
-        if elements.kind_of?(BinaryHeapScheduler)
+        if elements.kind_of?(BinaryHeap)
           initialize_copy(elements)
         else
           replace(elements)
         end
       else
-        if elements.kind_of?(BinaryHeapScheduler)
+        if elements.kind_of?(BinaryHeap)
           @que.concat(elements.que)
           reschedule!
         else
@@ -126,7 +113,7 @@ module DEVS
     end
 
     def replace(elements)
-      if elements.kind_of?(BinaryHeapScheduler)
+      if elements.kind_of?(BinaryHeap)
         initialize_copy(elements)
       else
         @que.replace(elements.to_a)

@@ -45,23 +45,15 @@ module DEVS
       @children.delete_at(idx) if idx
     end
 
-    # Returns a subset of {#children} including imminent children, e.g with
-    # a time next value matching {#time_next}.
-    #
-    # @return [Array<Model>] the imminent children
-    def imminent_children
-      @scheduler.imminent(@time_next)
-    end
-
-    def read_imminent_children
-      @scheduler.read_imminent(@time_next)
-    end
-
     # Returns the minimum time next in all children
     #
     # @return [Numeric] the min time next
     def min_time_next
-      @scheduler.read || DEVS::INFINITY
+      tn = DEVS::INFINITY
+      if (obj = @scheduler.peek)
+        tn = obj.time_next
+      end
+      tn
     end
 
     # Returns the maximum time last in all children

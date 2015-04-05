@@ -272,6 +272,10 @@ module DEVS
       @size - (@top.size + @bottom.size)
     end
 
+    def empty?
+      @size == 0
+    end
+
     def <<(obj)
       timestamp = obj.time_next
 
@@ -335,10 +339,13 @@ module DEVS
       self
     end
     alias_method :push, :<<
+    alias_method :enqueue, :<<
 
     def delete(obj)
       timestamp = obj.time_next
       item = nil
+
+      prepare! if @bottom.empty?
 
       if timestamp > @top_start
         index = @top.index(obj)
@@ -372,6 +379,17 @@ module DEVS
       @size -= 1
       @bottom.pop
     end
+    alias_method :dequeue, :pop
+
+    def pop_simultaneous
+      a = []
+      if @size > 0
+        time = self.peek.time_next
+        a << self.pop while @size > 0 && self.peek.time_next == time
+      end
+      a
+    end
+    alias_method :dequeue_simultaneous, :pop_simultaneous
 
     def clear
       @top.clear

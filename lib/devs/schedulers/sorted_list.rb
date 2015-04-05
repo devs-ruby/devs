@@ -1,5 +1,5 @@
 module DEVS
-  class SortedListScheduler
+  class SortedList
     def initialize(elements = nil)
       if elements
         @ary = elements.dup
@@ -15,40 +15,33 @@ module DEVS
       @ary.empty?
     end
 
-    def read
+    def peek
       return nil if @ary.empty?
-      @ary.last.time_next
+      @ary.last
     end
 
-    def imminent(time)
+    def <<(obj)
+      @ary << obj
+    end
+    alias_method :push, :<<
+    alias_method :enqueue, :<<
+
+    def pop
+      @ary.pop
+    end
+    alias_method :dequeue, :pop
+
+    def pop_simultaneous
       a = []
-      a << @ary.pop while !@ary.empty? && @ary.last.time_next == time
+      if @ary.size > 0
+        time = @ary.last.time_next
+        a << @ary.pop while @ary.size > 0 && @ary.last.time_next == time
+      end
       a
     end
+    alias_method :dequeue_simultaneous, :pop_simultaneous
 
-    def read_imminent(time)
-      ary = []
-      i = @ary.size - 1
-
-      while i >= 0
-        elt = @ary[i]
-        if elt.time_next == time
-          ary << elt
-          i -= 1
-        else
-          break
-        end
-      end
-
-      ary
-    end
-
-    def insert(processor)
-      @ary.push(processor)
-      reschedule!
-    end
-
-    def cancel(processor)
+    def delete(obj)
       i = @ary.size - 1
       elmt = nil
       while i >= 0

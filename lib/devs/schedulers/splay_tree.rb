@@ -56,6 +56,7 @@ module DEVS
       @size += 1
     end
     alias_method :push, :<<
+    alias_method :enqueue, :<<
 
     def find(obj)
       z = @root
@@ -101,11 +102,11 @@ module DEVS
       z.value
     end
 
-    def find_min
+    def peek
       return nil if @size == 0
       subtree_min(@root).value
     end
-    alias_method :peek, :find_min
+    alias_method :find_min, :peek
 
     def find_max
       return nil if @size == 0
@@ -116,6 +117,17 @@ module DEVS
       return nil if @size == 0
       delete(subtree_min(@root))
     end
+    alias_method :dequeue, :pop
+
+    def pop_simultaneous
+      a = []
+      if @size > 0
+        time = self.peek.time_next
+        a << self.pop while @size > 0 && self.peek.time_next == time
+      end
+      a
+    end
+    alias_method :dequeue_simultaneous, :pop_simultaneous
 
     private
 
