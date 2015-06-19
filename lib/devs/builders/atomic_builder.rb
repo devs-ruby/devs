@@ -54,7 +54,7 @@ module DEVS
     def post_simulation_hook(&block)
       if block
         @model.define_singleton_method(:post_simulation_hook, &block)
-        Hooks.notifier.subscribe(:post_simulation_hook)
+        Hooks.notifier.subscribe(:post_simulation_hook, @model, :post_simulation_hook)
       end
     end
   end
