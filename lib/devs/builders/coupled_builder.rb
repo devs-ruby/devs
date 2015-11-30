@@ -2,11 +2,11 @@ module DEVS
   class CoupledBuilder
     include BaseBuilder
 
-    def initialize(parent, klass, *args, &block)
+    def initialize(parent, klass, name: nil, with_args: [], &block)
       @model = if klass.nil? || !klass.respond_to?(:new)
-        CoupledModel.new
+        CoupledModel.new(name)
       else
-        klass.new(*args)
+        klass.new(name, *with_args)
       end
       parent.model << @model
       @processor = Coordinator.new(@model)
@@ -15,16 +15,13 @@ module DEVS
     end
 
     # @return [CoupledModel] the new coupled model
-    def add_coupled_model(*args, &block)
-      type = nil
-      type, *args = *args if args.first != nil && args.first.respond_to?(:new)
-
-      CoupledBuilder.new(self, type, *args, &block)
+    def add_coupled_model(type=nil, name: nil, with_args: [], &block)
+      CoupledBuilder.new(self, type, name: name, with_args: with_args, &block)
     end
 
     # @return [AtomicModel] the new atomic model
-    def add_model(type=nil, opts={}, &block)
-      AtomicBuilder.new(self, type, opts[:name], *opts[:with_args], &block)
+    def add_model(type=nil, name: nil, with_args: [], &block)
+      AtomicBuilder.new(self, type, name: name, with_args: with_args, &block)
     end
 
     def select(&block)

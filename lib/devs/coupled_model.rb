@@ -51,7 +51,7 @@ module DEVS
     def initialize(name = nil)
       super(name)
       CoupledModel.counter += 1
-      @name = "#{self.class.name || 'Anonymous'}#{CoupledModel.counter}" unless @name
+      @name = :"#{self.class.name || 'CoupledModel'}#{CoupledModel.counter}" unless @name
       @children = {}
       @internal_couplings = Hash.new { |h, k| h[k] = [] }
       @input_couplings = Hash.new { |h, k| h[k] = [] }
@@ -62,22 +62,17 @@ module DEVS
     #
     # @return [Array<Coupling>] the list of couplings
     def couplings(port = nil)
-      ary = @internal_couplings.values
-        .concat(@input_couplings.values)
-        .concat(@output_couplings.values)
-        .flatten! || []
-
       if port.nil?
-        ary
+        @internal_couplings.values
+            .concat(@input_couplings.values)
+            .concat(@output_couplings.values)
+            .flatten!
       else
-        couplings = []
-        i = 0
-        while i < ary.size
-          couplings << ary[i] if coupling.port_source == port
-          i += 1
-        end
-        couplings
-      end
+        Array.new(@internal_couplings[port])
+            .concat(@input_couplings[port])
+            .concat(@output_couplings[port])
+            .flatten!
+      end || []
     end
 
     def internal_couplings(port = nil)
@@ -117,8 +112,6 @@ module DEVS
     # @return [Model] the added child
     def <<(child)
       @children[child.name] = child
-      child.parent = self
-      child
     end
     alias_method :add_child, :<<
 
@@ -128,12 +121,6 @@ module DEVS
     # @return [Model] the deleted child
     def remove_child(child)
       @children.delete(child.name)
-      child.parent = nil
-      child
-    end
-
-    def rename_child(new_name, old_name)
-      @children[new_name] = @children.delete(old_name)
     end
 
     # Returns the children names

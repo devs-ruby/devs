@@ -26,8 +26,7 @@ module DEVS
       Coordinator.send(:include, namespace::CoordinatorImpl) unless Coordinator.include?(namespace::CoordinatorImpl)
       Simulator.send(:include, namespace::SimulatorImpl) unless Simulator.include?(namespace::SimulatorImpl)
 
-      @model = CoupledModel.new
-      @model.name = :RootCoupledModel
+      @model = CoupledModel.new(:root_coupled_model)
       @processor = Coordinator.new(@model)
       @processor.singleton_class.send(:include, namespace::Simulable)
       @duration = DEVS::INFINITY

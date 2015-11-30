@@ -1,18 +1,14 @@
 module DEVS
   # @abstract Base model class for {AtomicModel} and {CoupledModel} classes
   class Model
-    attr_accessor :name, :parent, :processor
     attr_reader :input_ports, :output_ports
+    attr_accessor :name, :processor
 
     # @!attribute name
     #   This attribute represent the name of the model.
     #   @return [Symbol] Returns the name of the model
 
-    # @!attribute parent
-    #   This attribute represent the parent {CoupledModel}.
-    #   @return [CoupledModel] Returns the parent model.
-
-    # @!attribute parent
+    # @!attribute processor
     #   This attribute represent the associated {Processor}.
     #   @return [Processor] Returns the associated processor.
 
@@ -39,12 +35,6 @@ module DEVS
 
     def output_ports
       @output_ports.values
-    end
-
-    def name=(name)
-      name = name.to_sym
-      @parent.rename_child(name, @name) if @parent && @name
-      @name = name
     end
 
     # Returns a boolean indicating if <tt>self</tt> is an atomic model

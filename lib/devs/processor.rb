@@ -44,26 +44,5 @@ module DEVS
     def inspect
       "<#{self.class}: tn=#{@time_next}, tl=#{@time_last}>"
     end
-
-    # Ensure the given {Message} is an input {Port} and belongs to {#model}.
-    #
-    # @param message [Message] the incoming message
-    # @raise [InvalidPortHostError] if {#model} is not the correct host
-    #   for this message
-    # @raise [InvalidPortTypeError] if the {Message#port} is not an input port
-    def ensure_input_message(message)
-      if message.port.host != model
-        raise InvalidPortHostError, "The port associated with the given\
-message #{message} doesn't belong to this model"
-      end
-
-      unless message.port.input?
-        raise InvalidPortTypeError, "The port associated with the given\
-message #{message} isn't an input port"
-      end
-
-      message
-    end
-    protected :ensure_input_message
   end
 end

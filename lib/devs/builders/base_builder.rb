@@ -9,9 +9,5 @@ module DEVS
     def add_output_port(*args)
       @model.add_output_port(*args)
     end
-
-    def name(name)
-      @model.name = name
-    end
   end
 end
