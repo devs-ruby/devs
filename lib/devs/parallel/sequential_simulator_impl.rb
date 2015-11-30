@@ -4,7 +4,7 @@ module DEVS
       def init(time)
         @time_last = @model.time = time
         @time_next = @time_last + @model.time_advance
-        debug "\t#{model} initialization (time_last: #{@time_last}, time_next: #{@time_next})" if DEVS.logger
+        debug "\t#{model} initialization (time_last: #{@time_last}, time_next: #{@time_next})" if DEVS.logger && DEVS.logger.debug?
         @time_next
       end
 
@@ -18,16 +18,16 @@ module DEVS
 
         if time == @time_next
           if bag.empty?
-            debug "\tinternal transition: #{@model}" if DEVS.logger
+            debug "\tinternal transition: #{@model}" if DEVS.logger && DEVS.logger.debug?
             @transition_count[:internal] += 1
             @model.internal_transition
           else
-            debug "\tconfluent transition: #{@model}" if DEVS.logger
+            debug "\tconfluent transition: #{@model}" if DEVS.logger && DEVS.logger.debug?
             @transition_count[:confluent] += 1
             @model.confluent_transition(bag)
           end
         elsif synced && !bag.empty?
-          debug "\texternal transition: #{@model}" if DEVS.logger
+          debug "\texternal transition: #{@model}" if DEVS.logger && DEVS.logger.debug?
           @transition_count[:external] += 1
           @model.elapsed = time - @time_last
           @model.external_transition(bag)
@@ -37,7 +37,7 @@ module DEVS
 
         @time_last = @model.time = time
         @time_next = @time_last + @model.time_advance
-        debug "\t\ttime_last: #{@time_last} | time_next: #{@time_next}" if DEVS.logger
+        debug "\t\ttime_last: #{@time_last} | time_next: #{@time_next}" if DEVS.logger && DEVS.logger.debug?
         @time_next
       end
     end

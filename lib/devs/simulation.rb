@@ -169,7 +169,7 @@ module DEVS
         start_time = begin_simulation
         self.time = @processor.initialize_state(self.time)
         while self.time < self.duration
-          debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger
+          debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger && DEVS.logger.debug?
           self.time = @processor.step(self.time)
         end
         end_simulation
@@ -189,7 +189,7 @@ module DEVS
           start_time = begin_simulation
           self.time = @processor.initialize_state(self.time)
           while time < self.duration
-            debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger
+            debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger && DEVS.logger.debug?
             self.time = @processor.step(self.time)
             yield(self)
           end
