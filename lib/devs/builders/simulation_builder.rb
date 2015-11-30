@@ -38,7 +38,7 @@ module DEVS
       unless @opts[:maintain_hierarchy]
         time = Time.now
         direct_connect!
-        DEVS.logger.info "*** Flattened modeling tree in #{Time.now - time} secs" if DEVS.logger
+        DEVS.logger.info "  * Flattened modeling tree in #{Time.now - time} secs" if DEVS.logger
       end
       generate_graph(@opts[:graph_file], @opts[:graph_format]) if @opts[:generate_graph]
       @simulation = Simulation.new(@processor, @duration, @build_start_time)
@@ -95,8 +95,11 @@ module DEVS
         i += 1
       end
 
-      children = @model.instance_variable_get(:@children)
+      children = @model.children.clear
       children_list.each { |child| children[child.name] = child }
+
+      processors = @processor.children.clear
+      processors.concat(children_list.map(&:processor))
 
       new_couplings = reusable_couplings.concat(adjust_couplings!(@model, @model.internal_couplings))
       ic = @model.instance_variable_get(:@internal_couplings).clear
