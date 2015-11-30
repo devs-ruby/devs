@@ -90,10 +90,7 @@ module DEVS
           end
         end
 
-        influencees = @synchronize.keys
-        i = 0
-        while i < influencees.size
-          receiver = influencees[i]
+        @synchronize.each_key do |receiver|
           sub_bag = @influencees[receiver]
           if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
             receiver.remainder(time, sub_bag)
@@ -108,7 +105,6 @@ module DEVS
             @scheduler.push(receiver) if tn < DEVS::INFINITY
           end
           sub_bag.clear
-          i += 1
         end
         @scheduler.reschedule! if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
         @synchronize.clear
