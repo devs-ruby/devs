@@ -1,14 +1,15 @@
 module DEVS
   module Classic
     module CoordinatorImpl
-
       # Handles init (i) messages
       #
       # @param time
       def init(time)
-        i = 0
         @bag = {}
         @parent_bag = {}
+
+        i = 0
+        selected = []
         min = DEVS::INFINITY
         while i < @children.size
           child = @children[i]
@@ -17,11 +18,12 @@ module DEVS
           min = tn if tn < min
           i += 1
         end
-        # @scheduler = if DEVS.scheduler == MinimalListScheduler || DEVS.scheduler == SortedListScheduler
-        #   DEVS.scheduler.new(@children)
-        # else
-        @scheduler = DEVS.scheduler.new(selected)
-        #end
+
+        @scheduler = if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
+          DEVS.scheduler.new(@children)
+        else
+          DEVS.scheduler.new(selected)
+        end
 
         @time_last = max_time_last
         @time_next = min
@@ -38,33 +40,30 @@ module DEVS
                 "time: #{time} should match time_next: #{@time_next}"
         end
 
-        # imm = if DEVS.scheduler == MinimalListScheduler || DEVS.scheduler == SortedListScheduler
-        #   read_imminent_children
-        # else
-        imm = @scheduler.dequeue_simultaneous
-        #end
+        imm = if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
+          @scheduler.peek_simultaneous
+        else
+          @scheduler.pop_simultaneous
+        end
 
         child = if imm.size > 1
-          children_models = imm.map(&:model)
-          child_model = model.select(children_models)
-          imm[children_models.index(child_model)]
+          model.select(imm.map(&:model)).processor
         else
           imm.first
         end
 
-        # if DEVS.scheduler == MinimalListScheduler || DEVS.scheduler == SortedListScheduler
-        #   child.internal_message(time)
-        #   @scheduler.reschedule!
-        # else
-        i = 0
-        while i < imm.size
-          c = imm[i]
-          @scheduler.enqueue(c) unless c == child
-          i += 1
+        if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
+          @bag.merge!(child.internal_message(time))
+        else
+          i = 0
+          while i < imm.size
+            c = imm[i]
+            @scheduler.enqueue(c) unless c == child
+            i += 1
+          end
+          @bag.merge!(child.internal_message(time))
+          @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
         end
-        @bag.merge!(child.internal_message(time))
-        @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
-        #end
 
         # handle child output bag
         @parent_bag.clear
@@ -82,18 +81,19 @@ module DEVS
           while i < ic.size
             coupling = ic[i]
             child = coupling.destination.processor
-            # if DEVS.scheduler == MinimalListScheduler || DEVS.scheduler == SortedListScheduler
-            #   child.handle_input(time, payload, coupling.destination_port)
-            # else
-            @scheduler.delete(child) if child.time_next < DEVS::INFINITY
-            child.handle_input(time, value, coupling.destination_port)
-            @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
-            # end
+            if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
+              child.handle_input(time, value, coupling.destination_port)
+            else
+              @scheduler.delete(child) if child.time_next < DEVS::INFINITY
+              child.handle_input(time, value, coupling.destination_port)
+              @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
+            end
             i += 1
           end
         end
-        @bag.clear
 
+        @bag.clear
+        @scheduler.reschedule! if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
         @time_last = time
         @time_next = min_time_next
 
@@ -115,16 +115,16 @@ module DEVS
           while i < eic.size
             coupling = eic[i]
             child = coupling.destination.processor
-            # if DEVS.scheduler == MinimalListScheduler || DEVS.scheduler == SortedListScheduler
-            #   child.handle_input(time, payload, coupling.destination_port)
-            # else
-            @scheduler.delete(child) if child.time_next < DEVS::INFINITY
-            child.handle_input(time, payload, coupling.destination_port)
-            @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
-            #end
-            #@scheduler.reschedule! if DEVS.scheduler == MinimalListScheduler || DEVS.scheduler == SortedListScheduler
+            if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
+              child.handle_input(time, payload, coupling.destination_port)
+            else
+              @scheduler.delete(child) if child.time_next < DEVS::INFINITY
+              child.handle_input(time, payload, coupling.destination_port)
+              @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
+            end
             i += 1
           end
+          @scheduler.reschedule! if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
 
           @time_last = time
           @time_next = min_time_next

@@ -39,6 +39,20 @@ module DEVS
     end
     alias_method :dequeue, :pop
 
+    def peek_simultaneous
+      a = []
+      if @ary.size > 0
+        time = self.peek.time_next
+        i = 0
+        while i < @ary.size
+          a << @ary[i] if @ary[i].time_next == time
+          i += 1
+        end
+      end
+      a
+    end
+    alias_method :read_simultaneous, :peek_simultaneous
+
     def pop_simultaneous
       a = []
       if @ary.size > 0

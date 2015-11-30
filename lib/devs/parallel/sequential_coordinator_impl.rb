@@ -17,7 +17,8 @@ module DEVS
           min = tn if tn < min
           i += 1
         end
-        @scheduler = if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
+
+        @scheduler = if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
           DEVS.scheduler.new(@children)
         else
           DEVS.scheduler.new(selected)
@@ -34,12 +35,11 @@ module DEVS
         @time_last = time
 
         @bag.clear
-        imm = @scheduler.pop_simultaneous
-        # imm = if DEVS.scheduler == SortedListScheduler || DEVS.scheduler == MinimalListScheduler
-        #   read_imminent_children
-        # else
-        #   imminent_children
-        # end
+        imm = if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
+          @scheduler.peek_simultaneous
+        else
+          @scheduler.pop_simultaneous
+        end
 
         i = 0
         while i < imm.size

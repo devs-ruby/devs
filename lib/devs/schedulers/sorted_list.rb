@@ -41,6 +41,24 @@ module DEVS
     end
     alias_method :dequeue_simultaneous, :pop_simultaneous
 
+    def peek_simultaneous
+      a = []
+      if @ary.size > 0
+        time = @ary.last.time_next
+        i = @ary.size - 1
+        while i >= 0
+          if @ary[i].time_next == time
+            a << @ary[i]
+            i -= 1
+          else
+            break
+          end
+        end
+      end
+      a
+    end
+    alias_method :read_simultaneous, :peek_simultaneous
+
     def delete(obj)
       i = @ary.size - 1
       elmt = nil
