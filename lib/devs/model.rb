@@ -1,24 +1,45 @@
 module DEVS
   # @abstract Base model class for {AtomicModel} and {CoupledModel} classes
   class Model
-    attr_reader :input_ports, :output_ports
     attr_accessor :name, :processor
+    attr_reader :input_ports, :output_ports, :input_ports_list,
+                :output_ports_list, :input_ports_names, :output_ports_names
 
     # @!attribute name
     #   This attribute represent the name of the model.
-    #   @return [Symbol] Returns the name of the model
+    #   @return [Symbol] Returns the name of the model.
 
     # @!attribute processor
     #   This attribute represent the associated {Processor}.
     #   @return [Processor] Returns the associated processor.
 
     # @!attribute [r] input_ports
+    #   This attribute represent the dictionary of input {Port}s, indexed by
+    #     their names.
+    #   @return [Hash<Symbol,Port>] Returns the hash of input ports indexed by
+    #     their names.
+
+    # @!attribute [r] output_ports
+    #   This attribute represent the list of output {Port}s, indexed by their
+    #     names.
+    #   @return [Hash<Symbol,Port] Returns the hash of output ports indexed by
+    #     their names.
+
+    # @!attribute [r] input_port_list
     #   This attribute represent the list of input {Port}s.
     #   @return [Array<Port>] Returns the array of input ports.
 
-    # @!attribute [r] output_ports
+    # @!attribute [r] output_port_list
     #   This attribute represent the list of output {Port}s.
     #   @return [Array<Port>] Returns the array of output ports.
+
+    # @!attribute [r] input_port_names
+    #   This attribute represent the list of names of the input {Port}s.
+    #   @return [Array<Symbol>] Returns the array of input ports names.
+
+    # @!attribute [r] output_port_names
+    #   This attribute represent the list of names of the output {Port}s.
+    #   @return [Array<Symbol>] Returns the array of output ports names.
 
     # Returns a new {Model} instance.
     #
@@ -27,14 +48,6 @@ module DEVS
       @name = name.to_sym unless name == nil
       @input_ports = {}
       @output_ports = {}
-    end
-
-    def input_ports
-      @input_ports.values
-    end
-
-    def output_ports
-      @output_ports.values
     end
 
     # Returns a boolean indicating if <tt>self</tt> is an atomic model
@@ -60,6 +73,7 @@ module DEVS
     # @param name [String, Symbol]
     # @return [Port, Array<Port>] the created port or the list of created ports
     def add_input_port(*names)
+      @input_port_names = nil; @input_port_list = nil; # cache invalidation
       add_port(:input, *names)
     end
 
@@ -68,14 +82,30 @@ module DEVS
     # @param name [String, Symbol] the port name
     # @return [Port, Array<Port>] the created port or the list of created ports
     def add_output_port(*names)
+      @output_port_names = nil; @output_port_list = nil; # cache invalidation
       add_port(:output, *names)
     end
 
     # Returns the list of input ports' names
     #
     # @return [Array<String, Symbol>] the name list
-    def input_ports_names
-      @input_ports.keys
+    def input_port_names
+      @input_port_names ||= @input_ports.keys
+    end
+
+    # Returns the list of output ports' names
+    #
+    # @return [Array<String, Symbol>] the name list
+    def output_port_names
+      @output_port_names ||= @output_ports.keys
+    end
+
+    def input_port_list
+      @input_port_list ||= @input_ports.values
+    end
+
+    def output_port_list
+      @output_port_list ||= @output_ports.values
     end
 
     # Find the input {Port} identified by the given <tt>name</tt>
@@ -84,13 +114,6 @@ module DEVS
     # @return [Port] the matching port, nil otherwise
     def find_input_port_by_name(name)
       @input_ports[name]
-    end
-
-    # Returns the list of output ports' names
-    #
-    # @return [Array<String, Symbol>] the name list
-    def output_ports_names
-      @output_ports.keys
     end
 
     # Find the output {Port} identified by the given <tt>name</tt>
