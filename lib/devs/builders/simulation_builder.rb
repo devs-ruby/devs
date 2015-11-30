@@ -95,7 +95,7 @@ module DEVS
         i += 1
       end
 
-      children = @model.children.clear
+      children = @model.instance_variable_get(:@children).clear
       children_list.each { |child| children[child.name] = child }
 
       processors = @processor.children.clear
