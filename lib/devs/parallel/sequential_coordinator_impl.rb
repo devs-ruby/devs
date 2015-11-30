@@ -2,10 +2,10 @@ module DEVS
   module SequentialParallel
     module CoordinatorImpl
       def init(time)
-        @influencees = Hash.new { |hsh, key| hsh[key] = [] }
+        @influencees = Hash.new { |hsh, key| hsh[key] = {} }
         @synchronize = {}
-        @parent_bag = []
-        @bag = []
+        @parent_bag = {}
+        @bag = {}
 
         i = 0
         selected = []
@@ -44,7 +44,7 @@ module DEVS
         i = 0
         while i < imm.size
           child = imm[i]
-          @bag.concat(child.collect(time))
+          @bag.merge!(child.collect(time))
           @synchronize[child] = true
           i += 1
         end
@@ -52,56 +52,42 @@ module DEVS
         # keep internal couplings and send EOC up
         @parent_bag.clear
 
-        i = 0
-        while i < @bag.size
-          message = @bag[i]
-          payload = message.payload
-          port = message.port
-
+        @bag.each do |port, payload|
           # check internal coupling to get children who receive sub-bag of y
-          j = 0
+          i = 0
           ic = @model.internal_couplings(port)
-          while j < ic.size
-            coupling = ic[j]
+          while i < ic.size
+            coupling = ic[i]
             receiver = coupling.destination.processor
-            @influencees[receiver] << Message.new(payload, coupling.destination_port)
+            @influencees[receiver][coupling.destination_port] = payload
             @synchronize[receiver] = true
-            j += 1
+            i += 1
           end
 
           # check external coupling to form sub-bag of parent output
-          j = 0
+          i = 0
           oc = @model.output_couplings(port)
-          while j < oc.size
-            @parent_bag << Message.new(payload, oc[j].destination_port)
-            j += 1
+          while i < oc.size
+            @parent_bag[oc[i].destination_port] = payload
+            i += 1
           end
-
-          i += 1
         end
 
         @parent_bag
       end
 
       def remainder(time, bag)
-        i = 0
-        while i < bag.size
-          message = bag[i]
-          payload = message.payload
-          port = message.port
-
+        bag.each do |port, payload|
           # check external input couplings to get children who receive sub-bag of y
-          j = 0
+          i = 0
           ic = @model.input_couplings(port)
-          while j < ic.size
-            coupling = ic[j]
+          while i < ic.size
+            coupling = ic[i]
             receiver = coupling.destination.processor
-            @influencees[receiver] << Message.new(payload, coupling.destination_port)
+            @influencees[receiver][coupling.destination_port] = payload
             @synchronize[receiver] = true
-            j += 1
+            i += 1
           end
-
-          i += 1
         end
 
         influencees = @synchronize.keys

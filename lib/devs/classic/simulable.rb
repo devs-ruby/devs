@@ -9,6 +9,7 @@ module DEVS
 
       def step(time)
         internal_message(time)
+        @time_next
       end
     end
   end

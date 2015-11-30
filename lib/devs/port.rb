@@ -39,7 +39,6 @@ module DEVS
       @type = type
       @name = name
       @host = host
-      @outgoing = nil
     end
 
     # Check if <tt>self</tt> is an input port
@@ -67,28 +66,6 @@ module DEVS
 
     def inspect
       "<#{self.class}: name=#{@name}, type=#{@type}, host=#{@host}>"
-    end
-
-    # Read the outgoing {Message} if any and empty the mailbox.
-    #
-    # @return [Message, nil] the outgoing message or <tt>nil</tt>
-    def pick_up
-      message = @outgoing
-      @outgoing = nil
-      message
-    end
-
-    # Put an outgoing {Message} into the mailbox.
-    #
-    # @param value [Message] the message to send
-    # @raise [MessageAlreadySentError] if an outgoing {Message} is already
-    #   waiting to be picked up
-    # @return [Message] the added message
-    def drop_off(value)
-      unless @outgoing.nil?
-        raise MessageAlreadySentError, "An outgoing message already exists"
-      end
-      @outgoing = value
     end
   end
 end

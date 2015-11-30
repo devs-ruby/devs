@@ -21,21 +21,15 @@ module DEVS
           raise BadSynchronisationError, "time: #{time} should match time_next: #{@time_next}"
         end
 
-        bag = model.fetch_output!
-        i = 0
-        while i < bag.size
-          msg = bag[i]
-          parent.handle_output(time, msg.payload, msg.port)
-          i += 1
-        end
-
         debug "\tinternal transition: #{model}" if DEVS.logger
+        output_bag = model.fetch_output!
         @transition_count[:internal] += 1
         model.internal_transition
 
         @time_last = model.time = time
         @time_next = time + model.time_advance
         debug "\t\ttime_last: #{@time_last} | time_next: #{@time_next}" if DEVS.logger
+        output_bag
       end
 
       # Handles input (x) messages
@@ -51,7 +45,7 @@ module DEVS
           @transition_count[:external] += 1
           model.elapsed = time - @time_last
           debug "\texternal transition: #{model}" if DEVS.logger
-          model.external_transition([Message.new(payload, port)])
+          model.external_transition({port => payload})
           @time_last = model.time = time
           @time_next = time + model.time_advance
           debug "\t\ttime_last: #{@time_last} | time_next: #{@time_next}" if DEVS.logger

@@ -7,7 +7,8 @@ module DEVS
       # @param time
       def init(time)
         i = 0
-        selected = []
+        @bag = {}
+        @parent_bag = {}
         min = DEVS::INFINITY
         while i < @children.size
           child = @children[i]
@@ -61,12 +62,42 @@ module DEVS
           @scheduler.enqueue(c) unless c == child
           i += 1
         end
-        child.internal_message(time)
+        @bag.merge!(child.internal_message(time))
         @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
         #end
 
+        # handle child output bag
+        @parent_bag.clear
+        @bag.each do |port, value|
+          eoc = @model.output_couplings(port)
+          ic = @model.internal_couplings(port)
+
+          i = 0
+          while i < eoc.size
+            @parent_bag[eoc[i].destination_port] = value
+            i += 1
+          end
+
+          i = 0
+          while i < ic.size
+            coupling = ic[i]
+            child = coupling.destination.processor
+            # if DEVS.scheduler == MinimalListScheduler || DEVS.scheduler == SortedListScheduler
+            #   child.handle_input(time, payload, coupling.destination_port)
+            # else
+            @scheduler.delete(child) if child.time_next < DEVS::INFINITY
+            child.handle_input(time, value, coupling.destination_port)
+            @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
+            # end
+            i += 1
+          end
+        end
+        @bag.clear
+
         @time_last = time
         @time_next = min_time_next
+
+        @parent_bag
       end
 
       # Handles input (x) messages
@@ -79,7 +110,6 @@ module DEVS
       #   {Coordinator#time_next}
       def handle_input(time, payload, port)
         if @time_last <= time && time <= @time_next
-
           eic = @model.input_couplings(port)
           i = 0
           while i < eic.size
@@ -100,36 +130,6 @@ module DEVS
           @time_next = min_time_next
         else
           raise BadSynchronisationError, "time: #{time} should be between time_last: #{@time_last} and time_next: #{@time_next}"
-        end
-      end
-
-      # Handles output (y) messages
-      #
-      # @param time
-      # @param payload [Object]
-      # @param port [Port]
-      def handle_output(time, payload, port)
-        eoc = @model.output_couplings(port)
-        i = 0
-        while i < eoc.size
-          coupling = eoc[i]
-          parent.handle_output(time, payload, coupling.destination_port)
-          i += 1
-        end
-
-        ic = @model.internal_couplings(port)
-        i = 0
-        while i < ic.size
-          coupling = ic[i]
-          child = coupling.destination.processor
-          # if DEVS.scheduler == MinimalListScheduler || DEVS.scheduler == SortedListScheduler
-          #   child.handle_input(time, payload, coupling.destination_port)
-          # else
-          @scheduler.delete(child) if child.time_next < DEVS::INFINITY
-          child.handle_input(time, payload, coupling.destination_port)
-          @scheduler.enqueue(child) if child.time_next < DEVS::INFINITY
-          # end
-          i += 1
         end
       end
     end
