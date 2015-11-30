@@ -35,7 +35,11 @@ module DEVS
     end
 
     def build
-      direct_connect! unless @opts[:maintain_hierarchy]
+      unless @opts[:maintain_hierarchy]
+        time = Time.now
+        direct_connect!
+        DEVS.logger.info "*** Flattened modeling tree in #{Time.now - time} secs" if DEVS.logger
+      end
       generate_graph(@opts[:graph_file], @opts[:graph_format]) if @opts[:generate_graph]
       @simulation = Simulation.new(@processor, @duration, @build_start_time)
     end
@@ -69,42 +73,39 @@ module DEVS
     end
 
     def direct_connect!
-      rm = @model
-      folded = rm.children
-      unfolded = []
-      sub_ic = []
+      models = [@model]
+      children_list = []
+      reusable_couplings = []
       i = 0
-      root_threshold = folded.size
+      while i < models.count
+        model = models[i]
+        if model.coupled?
+          # get internal couplings between atomics that we can reuse as-is in the root model
+          reusable_couplings.concat(model.internal_couplings.select { |c| c.source.atomic? && c.destination.atomic? })
+          models.concat(model.children)
 
-      while i < folded.count
-        m = folded[i]
-
-        if m.coupled?
-          sub_ic.concat(m.internal_couplings.select { |c|
-            c.source.atomic? && c.destination.atomic?
-          })
-          folded.concat(m.children)
+          if model != @model
+            parent_processor = model.processor.parent
+            parent_processor.model.remove_child(model)
+            parent_processor.remove_child(model.processor)
+          end
         else
-          unfolded << m if i > root_threshold-1
+          children_list << model
         end
-
         i += 1
       end
 
-      unfolded.each { |m| rm << m; rm.processor << m.processor }
-      adjust_couplings!(rm, rm.internal_couplings + sub_ic)
+      children = @model.instance_variable_get(:@children)
+      children_list.each { |child| children[child.name] = child }
 
-      rm.children.each do |m|
-        if m.coupled?
-          rm.remove_child(m)
-          rm.processor.remove_child(m.processor)
-        end
-      end
-      rm.couplings.each { |c| rm.remove_coupling(c) if c.source.coupled? || c.destination.coupled? }
+      new_couplings = reusable_couplings.concat(adjust_couplings!(@model, @model.internal_couplings))
+      ic = @model.instance_variable_get(:@internal_couplings).clear
+      new_couplings.each { |c| ic[c.port_source] << c }
     end
     private :direct_connect!
 
     def adjust_couplings!(rm, couplings)
+      adjusted_couplings = []
       couplings = Array.new(couplings)
       j = 0
 
@@ -126,12 +127,11 @@ module DEVS
                   if c1.destination.coupled?
                     couplings << Coupling.new(ci.port_source, c1.destination_port, :ic)
                   else
-                    rm.add_internal_coupling(ci.source, c1.destination, ci.port_source, c1.destination_port)
+                    adjusted_couplings << Coupling.new(ci.port_source, c1.destination_port, :ic)
                   end
                 end
               end
             end
-
             i += 1
           end
         elsif c1.destination.coupled? # eic
@@ -140,7 +140,6 @@ module DEVS
           while i < route.count
             tmp = route[i]
             dest = tmp.destination
-
             dest.each_coupling(dest.internal_couplings + dest.input_couplings, tmp.destination_port) do |ci|
               if ci.destination.coupled?
                 route << ci
@@ -148,20 +147,16 @@ module DEVS
                 if c1.source.coupled?
                   couplings << Coupling.new(c1.port_source, ci.destination_port, :ic)
                 else
-                  rm.add_internal_coupling(c1.source, ci.destination, c1.port_source, ci.destination_port)
+                  adjusted_couplings << Coupling.new(c1.port_source, ci.destination_port, :ic)
                 end
               end
             end
-
             i += 1
           end
-        else
-          # source and destination are atomics
-          rm.add_internal_coupling(c1.source, c1.destination, c1.port_source,
-                                   c1.destination_port)
         end
         j += 1
       end
+      adjusted_couplings
     end
     private :adjust_couplings!
 
