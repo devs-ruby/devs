@@ -9,9 +9,10 @@ module DEVS
     alias_method :components, :children
 
     # @!attribute [r] children
-    #   This attribute returns a list of all its child models, composed of
-    #   {AtomicModel}s or/and {CoupledModel}s.
-    #   @return [Array<Model>] Returns a list of all its child models
+    #   This attribute returns an associative array of all its child models,
+    #     composed of {AtomicModel}s or/and {CoupledModel}s, indexed by their
+    #     names.
+    #   @return [Hash<Symbol,Model>] Returns a list of all its child models
 
     # @!attribute [r] internal_couplings
     #   This attribute returns a list of all its <i>internal couplings</i> (IC).
