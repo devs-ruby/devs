@@ -1,6 +1,39 @@
 module DEVS
+  # The {Coupleable} mixin provides models with the ability to be coupled
+  # through an input and output interface.
   module Coupleable
-    attr_reader :input_ports, :output_ports
+    extend ActiveSupport::Concern
+
+    # @!group Syntax sugaring
+
+    def initialize_coupleable
+      self.class._input_ports.each { |name| add_port(:input, name) }
+      self.class._output_ports.each { |name| add_port(:output, name) }
+    end
+    protected :initialize_coupleable
+
+    module ClassMethods
+      def input_port(*args)
+        args.each { |arg| self._input_ports << arg.to_sym }
+      end
+
+      def output_port(*args)
+        args.each { |arg| self._output_ports << arg.to_sym }
+      end
+
+      def _input_ports
+        @_input_ports ||= self.superclass.singleton_class.method_defined?(:_input_ports) ? self.superclass._input_ports.dup : []
+      end
+
+      def _output_ports
+        @_output_ports ||= self.superclass.singleton_class.method_defined?(:_output_ports) ? self.superclass._output_ports.dup : []
+      end
+    end
+
+    # @!endgroup
+
+    attr_reader :input_ports, :output_ports, :input_port_list,
+            :output_port_list, :input_port_names, :output_port_names
 
     # @!attribute [r] input_ports
     #   This attribute represent the list of input {Port}s.
@@ -32,6 +65,16 @@ module DEVS
     # @return [Port, Array<Port>] the created port or the list of created ports
     def add_output_port(*names)
       add_port(:output, *names)
+    end
+
+    def remove_input_port(name)
+      @input_port_names = nil; @input_port_list = nil; # cache invalidation
+      @input_ports.delete(name)
+    end
+
+    def remove_output_port(name)
+      @output_port_names = nil; @output_port_list = nil; # cache invalidation
+      @output_ports.delete(name)
     end
 
     # Returns the list of input ports' names
