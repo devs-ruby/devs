@@ -53,10 +53,31 @@ module DEVS
     end
 
     # Hooks
-    def post_simulation_hook(&block)
+    def before_simulation(&block)
       if block
-        @model.define_singleton_method(:post_simulation_hook, &block)
-        Hooks.notifier.subscribe(:post_simulation_hook, @model, :post_simulation_hook)
+        @model.define_singleton_method(:before_simulation, &block)
+        Hooks.notifier.subscribe(:before_simulation_hook, @model, :before_simulation)
+      end
+    end
+
+    def before_simulation_initialization(&block)
+      if block
+        @model.define_singleton_method(:before_simulation_initialization, &block)
+        Hooks.notifier.subscribe(:before_simulation_initialization_hook, @model, :before_simulation_initialization)
+      end
+    end
+
+    def after_simulation_initialization(&block)
+      if block
+        @model.define_singleton_method(:after_simulation_initialization, &block)
+        Hooks.notifier.subscribe(:after_simulation_initialization_hook, @model, :after_simulation_initialization)
+      end
+    end
+
+    def after_simulation(&block)
+      if block
+        @model.define_singleton_method(:after_simulation, &block)
+        Hooks.notifier.subscribe(:after_simulation_hook, @model, :after_simulation)
       end
     end
   end
