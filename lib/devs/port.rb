@@ -14,28 +14,14 @@ module DEVS
     # @!attribute [r] host
     #   @return [Model] Returns the model that owns <tt>self</tt>
 
-    # Represent the list of possible type of ports.
-    #
-    # 1. <tt>:input</tt> for an input port
-    # 2. <tt>:output</tt> for an output port
-    #
-    # @return [Array<Symbol>] the port types
-    def self.types
-      [:input, :output]
-    end
-
     # Returns a new {Port} instance.
     #
     # @param host [Model] the owner of self
     # @param type [Symbol] the type of port, either <tt>:input</tt> or
     #   <tt>:output</tt>
     # @param name [String, Symbol] the name given to identify the port
-    # @raise [ArgumentError] if the specified type is unknown
     def initialize(host, type, name)
       type = type.downcase.to_sym unless type.nil?
-      if type != :input && type != :output
-        raise(ArgumentError, "type attribute must be either of #{Port.types}")
-      end
       @type = type
       @name = name
       @host = host
