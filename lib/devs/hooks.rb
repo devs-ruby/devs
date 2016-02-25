@@ -5,8 +5,13 @@ module DEVS
         @notifier ||= Fanout.new
       end
 
-      def subscribe(hook, instance, method=nil)
-        self.notifier.subscribe(hook, instance, method)
+      # @see Fanout#subscribe
+      def subscribe(hook, instance=nil, method=nil, &block)
+        self.notifier.subscribe(hook, instance, method, &block)
+      end
+
+      def unsubscribe(hook, instance=nil, method=nil, &block)
+        self.notifier.unsubscribe(hook, instance, method, &block)
       end
 
       def publish(hook, *args)
@@ -19,8 +24,34 @@ module DEVS
         @listeners_for = Hash.new { |hash, key| hash[key] = [] }
       end
 
-      def subscribe(hook, instance, method=nil)
-        @listeners_for[hook] << Subscriber.new(instance, method || hook)
+      # Subscribes the given method or block to the specified hook
+      #
+      # @overload subscribe(hook, instance, method)
+      #   Subscribes the receiver of the given method to the specified hook
+      #   @param hook [Symbol] the hook to subscribe to
+      #   @param instance [Object] the receiver of the method
+      #   @param method [Symbol, String] the callback method
+      # @overload subscribe(hook, &block)
+      #   Subscribes the given block to the specified hook
+      #   @param hook [Symbol] the hook to subscribe to
+      def subscribe(hook, instance=nil, method=nil, &block)
+        @listeners_for[hook] << if block
+          Subscriber.new(&block)
+        else
+          Subscriber.new(instance, method || hook)
+        end
+      end
+
+      def unsubscribe(hook, instance=nil, method=nil, &block)
+        if block
+          @listeners_for[hook].delete_if { |s| s.block == block }
+        elsif method
+          @listeners_for[hook].delete_if do |s|
+            s.receiver == instance && s.method == method
+          end
+        else
+          @listeners_for[hook].delete_if { |s| s.receiver == instance }
+        end
       end
 
       def publish(hook, *args)
@@ -29,15 +60,24 @@ module DEVS
     end
 
     class Subscriber
-      attr_reader :instance, :method
+      attr_reader :receiver, :method, :block
 
-      def initialize(instance, method)
-        @instance = instance
-        @method = method
+      def initialize(instance=nil, method=nil, &blk)
+        if blk
+          @receiver = blk.binding.receiver
+          @block = blk
+        else
+          @receiver = instance
+          @method = method
+        end
       end
 
       def publish(*args)
-        @instance.__send__(@method, *args)
+        if @block
+          @block.call(*args)
+        else
+          @receiver.__send__(@method, *args)
+        end
       end
     end
   end
