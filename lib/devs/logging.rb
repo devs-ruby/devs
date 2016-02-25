@@ -10,6 +10,8 @@ module DEVS
   class << self
     attr_accessor :logger
   end
+  @logger = Logger.new(STDOUT)
+  @logger.level = Logger::INFO
 
   module Logging
     # Send a debug message
