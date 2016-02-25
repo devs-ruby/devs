@@ -32,6 +32,10 @@ module DEVS
       end
     end
 
+    def prefer_mass_reschedule?
+      false
+    end
+
     def inspect
       "<#{self.class}: size=#{@size}, bucket_width=#{@width}, last_priority=#{@last_priority}, last_bucket=#{@last_bucket}, bucket_top=#{@bucket_top}, shrink_threshold=#{@shrink_threshold}, expand_threshold=#{@expand_threshold}>"
     end

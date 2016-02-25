@@ -23,6 +23,10 @@ module DEVS
       end
     end
 
+    def prefer_mass_reschedule?
+      false
+    end
+
     def empty?
       @size == 0
     end

@@ -7,6 +7,10 @@ module DEVS
       end
     end
 
+    def prefer_mass_reschedule?
+      true
+    end
+
     def size
       @ary.size
     end

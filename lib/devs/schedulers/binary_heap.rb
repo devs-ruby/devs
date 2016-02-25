@@ -11,6 +11,10 @@ module DEVS
       replace(elements) if elements
     end
 
+    def prefer_mass_reschedule?
+      false
+    end
+
     protected
     attr_reader :que
 

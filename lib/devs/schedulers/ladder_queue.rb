@@ -256,6 +256,10 @@ module DEVS
       end
     end
 
+    def prefer_mass_reschedule?
+      false
+    end
+
     def inspect
       "<#{self.class}: epoch=#{@epoch}, size=#{@size}, top=#{@top.size}, bottom=#{@bottom.size}, active_rungs=#{@active_rungs}, threshold=#{@threshold}, max_rungs=#{@max_rungs}, top_start=#{@top_start || 'nil'}, top_min=#{@top_min || 'nil'}, top_max=#{@top_max || 'nil'}, rungs=#{@rungs[0, @active_rungs]}>"
     end
@@ -345,24 +349,27 @@ module DEVS
       timestamp = obj.time_next
       item = nil
 
-      prepare! if @bottom.empty?
+      if @size > 0
+        new_epoch if @active_rungs == 0
 
-      if timestamp > @top_start
-        index = @top.index(obj)
-        item = @top.delete_at(index) unless index.nil?
-      else
-        x = 0
-        x += 1 while timestamp < @rungs[x].current_timestamp && x < @active_rungs
+        if timestamp > @top_start
+          index = @top.index(obj)
+          item = @top.delete_at(index) unless index.nil?
+        else
+          x = 0
+          x += 1 while timestamp < @rungs[x].current_timestamp && x < @active_rungs
 
-        item = @rungs[x].delete(obj) if x < @active_rungs
+          item = @rungs[x].delete(obj) if x < @active_rungs
 
-        unless item
-          index = @bottom.index(obj)
-          item = @bottom.delete_at(index) unless index == nil
+          unless item
+            index = @bottom.index(obj)
+            item = @bottom.delete_at(index) unless index == nil
+          end
         end
+
+        @size -= 1 if item
       end
 
-      @size -= 1 if item
       #warn("LadderQueue failed to delete #{timestamp}: #{obj.inspect}(model: #{obj.model.name}) | top_start: #{@top_start}") if DEVS.logger && item == nil
       item
     end
@@ -398,6 +405,10 @@ module DEVS
 
       @active_rungs = 0
       @size = 0
+      @epoch = 0
+      @top_max = nil
+      @top_min = nil
+      @top_start = 0
     end
 
     private
@@ -428,32 +439,36 @@ module DEVS
             rung = @rungs[@active_rungs - 1]
           end
         else
-          # no more events in ladder & bottom, new epoch
           break if @top.size == 0 # no more events in top, nothing to do
-
-          if @top_max - @top_min == 0
-            # all timestamps are identical, no sort required
-            # transfer directly events from top into bottom (shortcut)
-            tmp = @bottom
-            @bottom = @top
-            @top = tmp
-            #info("LadderQueue NEW EPOCH, transfer directly from TOP to BOTTOM (#{@bottom.size} events)") if DEVS.logger
-          else
-            rung = @rungs.first
-            rung.reset((@top_max.to_f - @top_min.to_f) / @top.size, @top.size, @top_min)
-            #info("LadderQueue NEW EPOCH, spawn first rung: #{rung.inspect}") if DEVS.logger
-            @active_rungs = 1
-            rung.concat(@top)
-            @top.clear
-          end
-
-          @epoch += 1
-          @top_start = @top_max
-          @top_max = @top_min = nil
+          new_epoch
         end
       end
 
       self
+    end
+
+    def new_epoch
+      # no more events in ladder & bottom, new epoch
+
+      if @top_max - @top_min == 0
+        # all timestamps are identical, no sort required
+        # transfer directly events from top into bottom (shortcut)
+        tmp = @bottom
+        @bottom = @top
+        @top = tmp
+        #info("LadderQueue NEW EPOCH, transfer directly from TOP to BOTTOM (#{@bottom.size} events)") if DEVS.logger
+      else
+        rung = @rungs.first
+        rung.reset((@top_max.to_f - @top_min.to_f) / @top.size, @top.size, @top_min)
+        #info("LadderQueue NEW EPOCH, spawn first rung: #{rung.inspect}") if DEVS.logger
+        @active_rungs = 1
+        rung.concat(@top)
+        @top.clear
+      end
+
+      @epoch += 1
+      @top_start = @top_max
+      @top_max = @top_min = nil
     end
 
     def recurse_rungs

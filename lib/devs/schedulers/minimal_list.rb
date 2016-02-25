@@ -7,6 +7,10 @@ module DEVS
       reschedule!
     end
 
+    def prefer_mass_reschedule?
+      true
+    end
+
     def <<(processor)
       @ary << processor
       @min = processor if !@min || processor.time_next < @min.time_next
