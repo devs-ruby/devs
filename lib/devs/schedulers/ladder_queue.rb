@@ -349,26 +349,24 @@ module DEVS
       timestamp = obj.time_next
       item = nil
 
-      if @size > 0
-        new_epoch if @active_rungs == 0
+      prepare! if @bottom.empty?
 
-        if timestamp > @top_start
-          index = @top.index(obj)
-          item = @top.delete_at(index) unless index.nil?
-        else
-          x = 0
-          x += 1 while timestamp < @rungs[x].current_timestamp && x < @active_rungs
+      if timestamp > @top_start
+        index = @top.index(obj)
+        item = @top.delete_at(index) unless index.nil?
+      else
+        x = 0
+        x += 1 while timestamp < @rungs[x].current_timestamp && x < @active_rungs
 
-          item = @rungs[x].delete(obj) if x < @active_rungs
+        item = @rungs[x].delete(obj) if x < @active_rungs
 
-          unless item
-            index = @bottom.index(obj)
-            item = @bottom.delete_at(index) unless index == nil
-          end
+        unless item
+          index = @bottom.index(obj)
+          item = @bottom.delete_at(index) unless index == nil
         end
-
-        @size -= 1 if item
       end
+
+      @size -= 1 if item
 
       #warn("LadderQueue failed to delete #{timestamp}: #{obj.inspect}(model: #{obj.model.name}) | top_start: #{@top_start}") if DEVS.logger && item == nil
       item
