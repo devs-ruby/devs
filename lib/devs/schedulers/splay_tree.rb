@@ -27,6 +27,11 @@ module DEVS
       false
     end
 
+    def clear
+      @root = nil
+      @size = 0
+    end
+
     def empty?
       @size == 0
     end

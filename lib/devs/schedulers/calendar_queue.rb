@@ -44,6 +44,15 @@ module DEVS
       @size == 0
     end
 
+    def clear
+      @size = 0
+      @resize_enabled = true
+      @last_bucket = 0
+      @bucket_top = 0
+      @last_priority = 0
+      local_init(2, 1.0, 0.0)
+    end
+
     def <<(obj)
       tn = obj.time_next
       i = tn / @width       # virtual bucket

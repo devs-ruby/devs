@@ -24,6 +24,10 @@ module DEVS
       @que.size
     end
 
+    def clear
+      @que.clear
+    end
+
     def empty?
       @que.size == 0
     end

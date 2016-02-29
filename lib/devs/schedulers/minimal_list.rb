@@ -2,13 +2,22 @@ module DEVS
   class MinimalList
 
     def initialize(elements = nil)
-      @ary = elements.dup || []
       @min = nil
-      reschedule!
+      if elements
+        @ary = elements.dup
+        reschedule!
+      else
+        @ary = []
+      end
     end
 
     def prefer_mass_reschedule?
       true
+    end
+
+    def clear
+      @ary.clear
+      @min = nil
     end
 
     def <<(processor)

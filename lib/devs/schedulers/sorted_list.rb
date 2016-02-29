@@ -4,6 +4,8 @@ module DEVS
       if elements
         @ary = elements.dup
         reschedule!
+      else
+        @ary = []
       end
     end
 
@@ -17,6 +19,10 @@ module DEVS
 
     def empty?
       @ary.empty?
+    end
+
+    def clear
+      @ary.clear
     end
 
     def peek
