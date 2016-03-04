@@ -35,6 +35,7 @@ module DEVS
           else
             debug "\tconfluent transition: #{@model}" if DEVS.logger && DEVS.logger.debug?
             @transition_count[:confluent] += 1
+            @model.elapsed = 0
             @model.confluent_transition(bag)
             kind = :confluent
           end
