@@ -8,6 +8,10 @@ module DEVS
     include ActiveModel::Serialization
 
     class << self
+      def processor_for(namespace)
+        namespace::Simulator
+      end
+
       attr_accessor :counter
     end
     @counter = 0
@@ -45,10 +49,6 @@ module DEVS
     end
 
     # @!endgroup
-
-    def processor
-      @processor ||= DEVS.namespace::Simulator.new(self)
-    end
 
     # Returns a boolean indicating if <tt>self</tt> is an atomic model
     #

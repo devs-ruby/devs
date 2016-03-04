@@ -5,6 +5,10 @@ module DEVS
     include Container
 
     class << self
+      def processor_for(namespace)
+        namespace::Coordinator
+      end
+
       attr_accessor :counter
     end
     @counter = 0
@@ -22,10 +26,6 @@ module DEVS
       @name = :"#{self.class.name || 'CoupledModel'}#{CoupledModel.counter}" unless @name
       initialize_coupleable
       initialize_container
-    end
-
-    def processor
-      @processor ||= DEVS.namespace::Coordinator.new(self)
     end
 
     # Returns a boolean indicating if <tt>self</tt> is a coupled model

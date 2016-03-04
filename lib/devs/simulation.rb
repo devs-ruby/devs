@@ -36,12 +36,9 @@ module DEVS
       }.merge(opts)
 
       @duration = opts[:duration]
-
+      @run_validations = opts[:run_validations]
       self.namespace = opts[:formalism]
       self.scheduler = opts[:scheduler]
-      DEVS.run_validations = opts[:run_validations]
-
-      @processor = @model.processor
 
       # TODO either forbid this feature with cdevs or add a warning when using cdevs
       unless opts[:maintain_hierarchy]
@@ -49,6 +46,10 @@ module DEVS
         direct_connect!
         DEVS.logger.info "  * Flattened modeling tree in #{Time.now - time} secs" if DEVS.logger
       end
+
+      time = Time.now
+      @processor = allocate_processors
+      DEVS.logger.info "  * Allocated processors in #{Time.now - time} secs" if DEVS.logger
     end
 
     def inspect
@@ -205,7 +206,7 @@ module DEVS
     # Run the simulation in a new thread
     def simulate
       if waiting?
-        simulable = DEVS.namespace::Simulable
+        simulable = @namespace::Simulable
         start_time = begin_simulation
         Hooks.notifier.publish(:before_simulation_initialization_hook)
         self.time = simulable.initialize_state(@processor, self.time)
@@ -228,7 +229,7 @@ module DEVS
     def each(&block)
       if waiting?
         if block_given?
-          simulable = DEVS.namespace::Simulable
+          simulable = @namespace::Simulable
           start_time = begin_simulation
           Hooks.notifier.publish(:before_simulation_initialization_hook)
           self.time = simulable.initialize_state(@processor, self.time)
@@ -269,8 +270,20 @@ module DEVS
 
     private
 
+    def allocate_processors(coupled = @model)
+      processor = coupled.class.processor_for(@namespace).new(coupled, scheduler: @scheduler, namespace: @namespace, run_validations: @run_validations)
+      coupled.each_child do |model|
+        processor << if model.coupled?
+          allocate_processors(model)
+        else
+          model.class.processor_for(@namespace).new(model, run_validations: @run_validations)
+        end
+      end
+      processor
+    end
+
     def namespace=(formalism)
-      DEVS.namespace = case formalism
+      @namespace = case formalism
       when :cdevs then CDEVS
       when :pdevs then PDEVS
       else
@@ -280,7 +293,7 @@ module DEVS
     end
 
     def scheduler=(name)
-      DEVS.scheduler = case name
+      @scheduler = case name
       when :ladder_queue then LadderQueue
       when :binary_heap then BinaryHeap
       when :minimal_list then MinimalList

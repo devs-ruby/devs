@@ -9,7 +9,7 @@ module DEVS
         @model._initialize_state
         @time_last = @model.time = time
         @time_next = @time_last + @model.time_advance
-        if DEVS.run_validations && @model.invalid?(:init)
+        if @run_validations && @model.invalid?(:init)
           if DEVS.logger
             error "model #{@model.name} is invalid for init context: #{@model.errors.full_messages}"
           end
@@ -37,7 +37,7 @@ module DEVS
 
         @time_last = @model.time = time
         @time_next = time + @model.time_advance
-        if DEVS.run_validations && @model.invalid?(:internal)
+        if @run_validations && @model.invalid?(:internal)
           if DEVS.logger
             error "model #{@model.name} is invalid for internal context: #{@model.errors.full_messages}"
           end
@@ -64,7 +64,7 @@ module DEVS
           @model.external_transition({port => [payload]}) # TODO ? break API with PDEVS ?
           @time_last = @model.time = time
           @time_next = time + @model.time_advance
-          if DEVS.run_validations && @model.invalid?(:external)
+          if @run_validations && @model.invalid?(:external)
             if DEVS.logger
               error "model #{@model.name} is invalid for external context: #{@model.errors.full_messages}"
             end

@@ -69,11 +69,4 @@ module DEVS
     VERSION
   end
   module_function :version
-
-  class << self
-    attr_accessor :namespace
-    attr_accessor :run_validations
-  end
-  @namespace = PDEVS
-  @run_validations = false
 end

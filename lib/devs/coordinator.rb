@@ -13,10 +13,12 @@ module DEVS
     # Returns a new instance of {Coordinator}
     #
     # @param model [CoupledModel] the managed coupled model
-    def initialize(model)
+    def initialize(model, scheduler:, namespace:, run_validations:)
       super(model)
       @children = []
-      @scheduler = nil
+      @namespace = namespace
+      @run_validations = run_validations
+      @scheduler = scheduler.new
     end
 
     def inspect

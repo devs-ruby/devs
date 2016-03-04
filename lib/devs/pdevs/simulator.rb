@@ -7,7 +7,7 @@ module DEVS
         @model._initialize_state
         @time_last = @model.time = time
         @time_next = @time_last + @model.time_advance
-        if DEVS.run_validations && @model.invalid?(:init)
+        if @run_validations && @model.invalid?(:init)
           if DEVS.logger
             error "model #{@model.name} is invalid for init context: #{@model.errors.full_messages}"
           end
@@ -52,7 +52,7 @@ module DEVS
         @time_last = @model.time = time
         @time_next = @time_last + @model.time_advance
 
-        if DEVS.run_validations && @model.invalid?(kind)
+        if @run_validations && @model.invalid?(kind)
           if DEVS.logger
             error "model #{@model.name} is invalid for #{kind} context: #{@model.errors.full_messages}"
           end

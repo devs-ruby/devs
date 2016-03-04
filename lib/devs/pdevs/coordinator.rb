@@ -1,8 +1,8 @@
 module DEVS
   module PDEVS
     class Coordinator < DEVS::Coordinator
-      def initialize(model)
-        super(model)
+      def initialize(model, scheduler:, namespace:, run_validations:)
+        super(model, scheduler: scheduler, namespace: namespace, run_validations: run_validations)
         @influencees = Hash.new { |h,k| h[k] = Hash.new { |h2,k2| h2[k2] = [] }}
         @synchronize = {}
         @parent_bag = Hash.new { |h,k| h[k] = [] }
