@@ -3,6 +3,7 @@ module DEVS
   class AtomicModel < Model
     include Coupleable
     include Behavior
+    include Observable # NOTE : include as a concern in behavior ?
 
     class << self
       attr_accessor :counter
