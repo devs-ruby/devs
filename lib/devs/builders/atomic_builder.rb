@@ -1,16 +1,19 @@
 module DEVS
+
+  # NOTE: singleton models cannot be serialized
+
   class AtomicBuilder
     include BaseBuilder
 
-    def initialize(parent, klass, name: nil, with_args: [], &block)
+    def initialize(parent, klass, name:, with_args: {}, &block)
       @model = if klass.nil? || !klass.respond_to?(:new)
         AtomicModel.new(name)
       else
-        klass.new(name, *with_args)
+        m = klass.new(name)
+        m.initial_state = with_args
+        m
       end
       parent.model << @model
-      @processor = Simulator.new(@model)
-      parent.processor << @processor
       instance_eval(&block) if block
     end
 

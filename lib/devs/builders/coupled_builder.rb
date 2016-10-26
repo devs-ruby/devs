@@ -9,8 +9,6 @@ module DEVS
         klass.new(name, *with_args)
       end
       parent.model << @model
-      @processor = Coordinator.new(@model)
-      parent.processor << @processor
       instance_eval(&block) if block
     end
 
@@ -20,7 +18,7 @@ module DEVS
     end
 
     # @return [AtomicModel] the new atomic model
-    def add_model(type=nil, name: nil, with_args: [], &block)
+    def add_model(type=nil, name: nil, with_args: {}, &block)
       AtomicBuilder.new(self, type, name: name, with_args: with_args, &block)
     end
 

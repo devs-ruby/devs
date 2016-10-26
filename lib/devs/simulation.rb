@@ -2,10 +2,8 @@ module DEVS
   # This class represent the interface to the simulation
   class Simulation
     include Logging
-    include Enumerable
 
-    attr_reader :duration, :start_time, :final_time, :time, :processor,
-                :build_start_time, :build_end_time, :build_elapsed_secs
+    attr_reader :duration, :time, :processor, :model
 
     # @!attribute [r] time
     #   @return [Numeric] Returns the current simulation time
@@ -16,24 +14,41 @@ module DEVS
     # @!attribute [rw] duration
     #   @return [Numeric] Returns the total duration of the simulation time
 
-    # @!attribute [r] init_time
-    #   @return [Numeric] Returns the duration of the initialization
-
     # Returns a new {Simulation} instance.
     #
-    # @param child [Coordinator] the child coordinator
-    # @param strategy [Module] the strategy responding ro run
-    # @param duration [Numeric] the duration of the simulation
-    # @raise [ArgumentError] if the child is not a coordinator
-    def initialize(processor, duration, build_start_time)
-      @duration = duration
+    # @param model [Model] the model hierarchy
+    # @param opts [Hash] simulation options
+    def initialize(model, opts={})
       @time = 0
-      @processor = processor
       @lock = Mutex.new
-      @build_start_time = build_start_time
-      @build_end_time = Time.now
-      @build_elapsed_secs = @build_end_time - @build_start_time
-      info "*** Builded simulation at #{@build_end_time} after #{@build_elapsed_secs} secs." if DEVS.logger
+      @model = if model.atomic?
+        CoupledModel.new(:root_coupled_model) << model
+      else
+        model
+      end
+
+      opts = {
+        formalism: :pdevs,
+        scheduler: :ladder_queue,
+        maintain_hierarchy: false,
+        run_validations: false,
+        duration: DEVS::INFINITY
+      }.merge(opts)
+
+      @duration = opts[:duration]
+
+      self.namespace = opts[:formalism]
+      self.scheduler = opts[:scheduler]
+      DEVS.run_validations = opts[:run_validations]
+
+      @processor = @model.processor
+
+      # TODO either forbid this feature with cdevs or add a warning when using cdevs
+      unless opts[:maintain_hierarchy]
+        time = Time.now
+        direct_connect!
+        DEVS.logger.info "  * Flattened modeling tree in #{Time.now - time} secs" if DEVS.logger
+      end
     end
 
     def inspect
@@ -82,7 +97,7 @@ module DEVS
     #
     # @return [Boolean]
     def running?
-      @lock.synchronize { defined?(@start_time) } && !done?
+      @lock.synchronize { @start_time != nil } && !done?
     end
 
     # Returns <tt>true</tt> if the simulation is waiting to be started,
@@ -90,7 +105,7 @@ module DEVS
     #
     # @return [Boolean]
     def waiting?
-      @lock.synchronize { !defined?(@start_time) }
+      @lock.synchronize { @start_time == nil }
     end
 
     # Returns the simulation status: <tt>waiting</tt>, <tt>running</tt> or
@@ -163,14 +178,37 @@ module DEVS
       end
     end
 
+    def abort
+      if running?
+        info "Aborting simulation." if DEVS.logger
+        self.time = @duration
+        final_time = Time.now
+        @lock.lock
+        @final_time = final_time
+        @lock.unlock
+      end
+    end
+
+    def restart
+      case status
+      when :done
+        @transition_stats = nil
+        self.time = 0
+        @start_time = nil
+        @final_time = nil
+      when :running
+        info "Cannot restart, the simulation is currently running." if DEVS.logger
+      end
+    end
     # Run the simulation in a new thread
     def simulate
       if waiting?
+        simulable = DEVS.namespace::Simulable
         start_time = begin_simulation
-        self.time = @processor.initialize_state(self.time)
+        self.time = simulable.initialize_state(@processor, self.time)
         while self.time < self.duration
           debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger && DEVS.logger.debug?
-          self.time = @processor.step(self.time)
+          self.time = simulable.step(@processor, self.time)
         end
         end_simulation
       else
@@ -186,11 +224,12 @@ module DEVS
     def each(&block)
       if waiting?
         if block_given?
+          simulable = DEVS.namespace::Simulable
           start_time = begin_simulation
-          self.time = @processor.initialize_state(self.time)
+          self.time = simulable.initialize_state(@processor, self.time)
           while time < self.duration
             debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger && DEVS.logger.debug?
-            self.time = @processor.step(self.time)
+            self.time = simulable.step(@processor, self.time)
             yield(self)
           end
           end_simulation
@@ -207,7 +246,199 @@ module DEVS
       end
     end
 
+    def generate_graph(path='model_hierarchy.dot')
+      path << ".dot" if File.extname(path).empty?
+      file = File.new(path, 'w+')
+      file.puts "digraph"
+      file.puts '{'
+      file.puts "compound = true;"
+      file.puts "rankdir = LR;"
+      file.puts "node [shape = box];"
+
+      fill_graph(file, @model)
+
+      file.puts '}'
+      file.close
+    end
+
     private
+
+    def namespace=(formalism)
+      DEVS.namespace = case formalism
+      when :cdevs then CDEVS
+      when :pdevs then PDEVS
+      else
+        DEVS.logger.warn("formalism #{formalism} unknown, defaults to PDEVS") if DEVS.logger
+        PDEVS
+      end
+    end
+
+    def scheduler=(name)
+      DEVS.scheduler = case name
+      when :ladder_queue then LadderQueue
+      when :binary_heap then BinaryHeap
+      when :minimal_list then MinimalList
+      when :sorted_list then SortedList
+      when :splay_tree then SplayTree
+      when :calendar_queue then CalendarQueue
+      else
+        DEVS.logger.warn("scheduler #{@opts[:scheduler]} unknown, defaults to LadderQueue") if DEVS.logger
+        LadderQueue
+      end
+    end
+
+    # TODO Don't destruct the old hierarchy
+    def direct_connect!
+      models = [@model]
+      children_list = []
+      reusable_internal_couplings = Hash.new { |h, k| h[k] = [] }
+
+      i = 0
+      while i < models.count
+        model = models[i]
+        if model.coupled?
+          # get internal couplings between atomics that we can reuse as-is in the root model
+          model.internal_couplings.each do |src, dest_ary|
+            if src.host.atomic?
+              reusable_internal_couplings[src].concat(dest_ary.select { |dst| dst.host.atomic? })
+            end
+          end
+          models.concat(model.children.values)
+        else
+          children_list << model
+        end
+        i += 1
+      end
+
+      children = @model.instance_variable_get(:@children).clear
+      children_list.each { |child| children[child.name] = child }
+
+      new_couplings = reusable_internal_couplings.merge!(adjust_couplings!(@model, @model.internal_couplings)) { |src, ary, new_ary| ary.concat(new_ary) }
+      @model.instance_variable_set(:@internal_couplings, new_couplings)
+    end
+
+    def adjust_couplings!(cm, hash_couplings)
+      adjusted_couplings = Hash.new { |h, k| h[k] = [] }
+
+      couplings = []
+      #cm.input_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
+      cm.internal_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
+      #cm.output_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
+
+      i = 0
+      while i < couplings.size
+        osrc = couplings[i]
+        odst = couplings[i+1]
+        if osrc.host.atomic? && odst.host.atomic?
+          adjusted_couplings[osrc] << odst
+        elsif osrc.host.coupled? # eic
+          route = [osrc, odst]
+          j = 0
+          while j < route.size
+            rsrc = route[j]
+            rsrc.host.each_output_coupling_reverse(rsrc) do |src, dst|
+              if src.host.coupled?
+                route.push(src, dst)
+              else
+                couplings.push(src, odst)
+              end
+            end
+            j += 2
+          end
+        elsif odst.host.coupled? # eoc
+          route = [osrc,odst]
+          j = 0
+          while j < route.size
+            rdst = route[j+1]
+            rdst.host.each_input_coupling(rdst) do |src,dst|
+              if dst.host.coupled?
+                route.push(src, dst)
+              else
+                couplings.push(osrc, dst)
+              end
+            end
+            j += 2
+          end
+        end
+        i += 2
+      end
+      adjusted_couplings
+    end
+
+    def add_couplings_to_graph(graph, cm)
+      couplings = []
+      cm.input_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
+      cm.internal_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
+      cm.output_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
+
+      i = 0
+      while i < couplings.size
+        osrc = couplings[i]
+        odst = couplings[i+1]
+        if osrc.host.atomic? && odst.host.atomic?
+          graph.puts "\"#{osrc.host.name.to_s}\" -> \"#{odst.host.name.to_s}\" [label=\"#{osrc.name.to_s} → #{odst.name.to_s}\"];"
+          #edge = graph.edge(osrc.host.name.to_s, odst.host.name.to_s)
+          #edge.label "#{osrc.name.to_s} → #{odst.name.to_s}"
+        elsif osrc.host.coupled? # eic
+          route = [osrc, odst]
+          j = 0
+          while j < route.size
+            rsrc = route[j]
+            rsrc.host.each_output_coupling_reverse(rsrc) do |src, dst|
+              if src.host.coupled?
+                route.push(src, dst)
+              else
+                couplings.push(src, odst)
+              end
+            end
+            #rsrc.host.each_internal_coupling_reverse(rsrc, &blk)
+            j += 2
+          end
+        elsif odst.host.coupled? # eoc
+          route = [osrc,odst]
+          j = 0
+          while j < route.size
+            rdst = route[j+1]
+            rdst.host.each_input_coupling(rdst) do |src,dst|
+              if dst.host.coupled?
+                route.push(src, dst)
+              else
+                couplings.push(osrc, dst)
+              end
+            end
+            #rdst.host.each_internal_coupling(rdst, &blk)
+            j += 2
+          end
+        end
+        i += 2
+      end
+    end
+
+    def fill_graph(graph, cm)
+      cm.each_child do |model|
+        name = model.to_s
+        if model.coupled?
+          graph.puts "subgraph \"cluster_#{name}\""
+          graph.puts '{'
+          graph.puts "label = \"#{name}\";"
+          fill_graph(graph, model)
+          model.internal_couplings.each do |src, dest_ary|
+            if src.host.atomic?
+              dest_ary.each do |dst|
+                if dst.host.atomic?
+                  graph.puts "\"#{src.host.name.to_s}\" -> \"#{dst.host.name.to_s}\" [label=\"#{src.name.to_s} → #{dst.name.to_s}\"];"
+                end
+              end
+            end
+          end
+          graph.puts "};"
+        else
+          graph.puts "\"#{name}\" [style=filled];"
+        end
+      end
+      add_couplings_to_graph(graph, cm) if cm == @model
+    end
+
     def time=(v)
       @lock.lock
       @time = v
