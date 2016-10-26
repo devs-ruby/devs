@@ -3,6 +3,8 @@ require 'logger'
 require 'observer'
 
 require 'active_support/concern'
+require 'active_model'
+
 # @author Romain Franceschini <franceschini.romain@gmail.com>
 module DEVS
   INFINITY = Float::INFINITY

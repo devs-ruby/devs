@@ -4,6 +4,8 @@ module DEVS
     include Coupleable
     include Behavior
     include Observable # NOTE : include as a concern in behavior ?
+    include ActiveModel::Validations
+    include ActiveModel::Serialization
 
     class << self
       attr_accessor :counter
@@ -21,10 +23,31 @@ module DEVS
 
       AtomicModel.counter += 1
       @name = :"#{self.class.name || 'AtomicModel'}#{AtomicModel.counter}" unless @name
-      @elapsed = 0.0
-      @sigma = INFINITY
-      @time = 0
       @bag = {}
+      initialize_coupleable
+    end
+
+    # @!group ActiveModel serialization
+
+    def attributes=(hash)
+      @name = hash.delete(:name)
+      self.initial_state = hash
+    end
+
+    def attributes
+      hash = { name: @name }
+      state_attrs = self.class._state_attributes
+      state_attrs.each_key do |attr|
+        # NOTE lot of string allocations
+        hash[attr] = self.instance_variable_get(:"@#{attr}")
+      end
+      hash
+    end
+
+    # @!endgroup
+
+    def processor
+      @processor ||= DEVS.namespace::Simulator.new(self)
     end
 
     # Returns a boolean indicating if <tt>self</tt> is an atomic model
