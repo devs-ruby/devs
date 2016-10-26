@@ -2,6 +2,7 @@ require 'set'
 require 'logger'
 require 'observer'
 
+require 'active_support/concern'
 # @author Romain Franceschini <franceschini.romain@gmail.com>
 module DEVS
   INFINITY = Float::INFINITY
@@ -13,6 +14,7 @@ require 'devs/errors'
 require 'devs/linked_list'
 require 'devs/core_ext'
 require 'devs/port'
+require 'devs/attr_state'
 require 'devs/coupleable'
 require 'devs/container'
 require 'devs/behavior'
