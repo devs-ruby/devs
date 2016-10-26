@@ -40,9 +40,9 @@ module DEVS
     # @param child [Processor] the child to remove
     # @return [Processor] the deleted child
     def remove_child(child)
-      child.parent = nil
+      @scheduler.delete(child)
       idx = @children.index { |x| child.equal?(x) }
-      @children.delete_at(idx) if idx
+      @children.delete_at(idx).parent = nil if idx
     end
 
     # Returns the minimum time next in all children

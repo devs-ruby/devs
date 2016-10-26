@@ -1,27 +1,30 @@
 module DEVS
-  module SequentialParallel
-    module CoordinatorImpl
-      def init(time)
-        @influencees = Hash.new { |hsh, key| hsh[key] = {} }
+  module PDEVS
+    class Coordinator < DEVS::Coordinator
+      def initialize(model)
+        super(model)
+        @influencees = Hash.new { |h,k| h[k] = Hash.new { |h2,k2| h2[k2] = [] }}
         @synchronize = {}
-        @parent_bag = {}
-        @bag = {}
+        @parent_bag = Hash.new { |h,k| h[k] = [] }
+      end
 
+      def initialize_processor(time)
         i = 0
         selected = []
         min = DEVS::INFINITY
         while i < @children.size
           child = @children[i]
-          tn = child.init(time)
+          tn = child.initialize_processor(time)
           selected.push(child) if tn < DEVS::INFINITY
           min = tn if tn < min
           i += 1
         end
 
-        @scheduler = if DEVS.scheduler == MinimalList || DEVS.scheduler == SortedList
-          DEVS.scheduler.new(@children)
+        @scheduler.clear
+        if @scheduler.prefer_mass_reschedule?
+          @children.each { |c| @scheduler << c }
         else
-          DEVS.scheduler.new(selected)
+          selected.each { |c| @scheduler << c }
         end
 
         @time_last = max_time_last
@@ -34,43 +37,49 @@ module DEVS
         end
         @time_last = time
 
-        @bag.clear
-        imm = if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
+        imm = if @scheduler.prefer_mass_reschedule?
           @scheduler.peek_simultaneous
         else
           @scheduler.pop_simultaneous
         end
 
+        @parent_bag.clear
         i = 0
         while i < imm.size
           child = imm[i]
-          @bag.merge!(child.collect(time))
           @synchronize[child] = true
+          output = child.collect(time)
+
+          output.each do |port, payload|
+            # check internal coupling to get children who receive sub-bag of y
+            j = 0
+            ic = @model.internal_couplings(port)
+            while j < ic.size
+              destination_port = ic[j]
+              receiver = destination_port.host.processor
+              if child.is_a?(Coordinator)
+                @influencees[receiver][destination_port].concat(payload)
+              else
+                @influencees[receiver][destination_port] << payload
+              end
+              @synchronize[receiver] = true
+              j += 1
+            end
+
+            # check external coupling to form sub-bag of parent output
+            j = 0
+            oc = @model.output_couplings(port)
+            while j < oc.size
+              port = oc[j]
+              if child.is_a?(Coordinator)
+                @parent_bag[port].concat(payload)
+              else
+                @parent_bag[port] << payload
+              end
+              j += 1
+            end
+          end
           i += 1
-        end
-
-        # keep internal couplings and send EOC up
-        @parent_bag.clear
-
-        @bag.each do |port, payload|
-          # check internal coupling to get children who receive sub-bag of y
-          i = 0
-          ic = @model.internal_couplings(port)
-          while i < ic.size
-            coupling = ic[i]
-            receiver = coupling.destination.processor
-            @influencees[receiver][coupling.destination_port] = payload
-            @synchronize[receiver] = true
-            i += 1
-          end
-
-          # check external coupling to form sub-bag of parent output
-          i = 0
-          oc = @model.output_couplings(port)
-          while i < oc.size
-            @parent_bag[oc[i].destination_port] = payload
-            i += 1
-          end
         end
 
         @parent_bag
@@ -82,9 +91,9 @@ module DEVS
           i = 0
           ic = @model.input_couplings(port)
           while i < ic.size
-            coupling = ic[i]
-            receiver = coupling.destination.processor
-            @influencees[receiver][coupling.destination_port] = payload
+            destination_port = ic[i]
+            receiver = destination_port.host.processor
+            @influencees[receiver][destination_port].concat(payload)
             @synchronize[receiver] = true
             i += 1
           end
@@ -92,7 +101,7 @@ module DEVS
 
         @synchronize.each_key do |receiver|
           sub_bag = @influencees[receiver]
-          if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
+          if @scheduler.prefer_mass_reschedule?
             receiver.remainder(time, sub_bag)
           else
             tn = receiver.time_next
@@ -106,7 +115,7 @@ module DEVS
           end
           sub_bag.clear
         end
-        @scheduler.reschedule! if DEVS.scheduler == SortedList || DEVS.scheduler == MinimalList
+        @scheduler.reschedule! if @scheduler.prefer_mass_reschedule?
         @synchronize.clear
 
         @time_last = time

@@ -30,8 +30,8 @@ require 'devs/schedulers'
 require 'devs/simulation'
 require 'devs/builders'
 require 'devs/hooks'
-require 'devs/parallel'
-require 'devs/classic'
+require 'devs/pdevs'
+require 'devs/cdevs'
 
 module DEVS
   # Builds a simulation
