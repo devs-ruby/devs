@@ -58,7 +58,7 @@ module DEVS
     # @note This method calls the DEVS lambda (λ) function
     # @api private
     # @return [Hash<Port,Object>]
-    def fetch_output!
+    def _fetch_output!
       @bag.clear
       self.output
       @bag
