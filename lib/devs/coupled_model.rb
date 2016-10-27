@@ -2,6 +2,7 @@ module DEVS
   # This class represent a DEVS coupled model.
   class CoupledModel < Model
     include Enumerable
+    include Coupleable
 
     attr_reader :children, :internal_couplings, :input_couplings,
                 :output_couplings
@@ -51,6 +52,10 @@ module DEVS
     # @param name [String, Symbol] the name of the model
     def initialize(name = nil)
       super(name)
+
+      @input_ports = {}
+      @output_ports = {}
+
       CoupledModel.counter += 1
       @name = :"#{self.class.name || 'CoupledModel'}#{CoupledModel.counter}" unless @name
       @children = {}
