@@ -7,18 +7,26 @@ module DEVS
     # @!group Syntax sugaring
 
     def initialize_coupleable
-      self.class._input_ports.each { |name| add_port(:input, name) }
-      self.class._output_ports.each { |name| add_port(:output, name) }
+      self.class._input_ports.each { |name| create_port(:input, name) }
+      self.class._output_ports.each { |name| create_port(:output, name) }
     end
     protected :initialize_coupleable
 
     module ClassMethods
-      def input_port(*args)
-        args.each { |arg| self._input_ports << arg.to_sym }
+      def input_port(name)
+        self._input_ports << name
       end
 
-      def output_port(*args)
-        args.each { |arg| self._output_ports << arg.to_sym }
+      def input_ports(*args)
+        args.each { |arg| self._input_ports << arg }
+      end
+
+      def output_port(name)
+        self._output_ports << name
+      end
+
+      def output_ports(*args)
+        args.each { |arg| self._output_ports << arg }
       end
 
       def _input_ports
@@ -32,82 +40,110 @@ module DEVS
 
     # @!endgroup
 
-    attr_reader :input_ports, :output_ports, :input_port_list,
-            :output_port_list, :input_port_names, :output_port_names
-
-    # @!attribute [r] input_ports
-    #   This attribute represent the list of input {Port}s.
-    #   @return [Array<Port>] Returns the array of input ports.
-
-    # @!attribute [r] output_ports
-    #   This attribute represent the list of output {Port}s.
-    #   @return [Array<Port>] Returns the array of output ports.
-
-    def input_ports
-      @input_ports.values
+    # Add given port to *self*
+    def add_port(port)
+      raise InvalidPortHostError if port.host != self
+      case port.type
+      when :input
+        input_ports[port.name] = port
+      when :output
+        output_ports[port.name] = port
+      end
     end
 
-    def output_ports
-      @output_ports.values
-    end
-
-    # Adds an input port to <tt>self</tt>.
+    # Adds given input ports to <tt>self</tt>.
     #
-    # @param name [String, Symbol]
-    # @return [Port, Array<Port>] the created port or the list of created ports
-    def add_input_port(*names)
-      add_port(:input, *names)
+    # @param name [String, Symbol] the port name
+    # @return [Array<Port>] the created port or the list of created ports
+    def add_input_ports(*names)
+      create_port(:input, *names)
     end
+    alias_method :add_input_port, :add_input_ports
 
-    # Adds an output port to <tt>self</tt>.
+    # Adds given output ports to <tt>self</tt>.
     #
     # @param name [String, Symbol] the port name
     # @return [Port, Array<Port>] the created port or the list of created ports
-    def add_output_port(*names)
-      add_port(:output, *names)
+    def add_output_ports(*names)
+      create_port(:output, *names)
+    end
+    alias_method :add_output_port, :add_output_ports
+
+    # Removes given port from <tt>self</tt>
+    def remove_port(port)
+      case port.type
+      when :input
+        input_ports.delete(port.name)
+      when :output
+        output_ports.delete(port.name)
+      end
     end
 
+    # Removes given input port by its name.
     def remove_input_port(name)
-      @input_port_names = nil; @input_port_list = nil; # cache invalidation
-      @input_ports.delete(name)
+      input_ports.delete(name)
     end
 
+    # Removes given output port by its name.
     def remove_output_port(name)
-      @output_port_names = nil; @output_port_list = nil; # cache invalidation
-      @output_ports.delete(name)
+      output_ports.delete(name)
     end
 
     # Returns the list of input ports' names
     #
     # @return [Array<String, Symbol>] the name list
-    def input_ports_names
-      @input_ports.keys
-    end
-
-    # Find the input {Port} identified by the given <tt>name</tt>
-    #
-    # @param name [String, Symbol] the port name
-    # @return [Port] the matching port, nil otherwise
-    def find_input_port_by_name(name)
-      @input_ports[name]
+    def input_port_names
+      input_ports.keys
     end
 
     # Returns the list of output ports' names
     #
     # @return [Array<String, Symbol>] the name list
-    def output_ports_names
-      @output_ports.keys
+    def output_port_names
+      output_ports.keys
     end
 
-    # Find the output {Port} identified by the given <tt>name</tt>
-    #
-    # @param name [String, Symbol] the port name
-    # @return [Port] the matching port, nil otherwise
-    def find_output_port_by_name(name)
-      @output_ports[name]
+    # Returns the list of input ports
+    def input_port_list
+      input_ports.values
+    end
+
+    # Returns the list of output ports
+    def output_port_list
+      output_ports.values
+    end
+
+    # Find the input port identified by the given *name*.
+    def input_port?(name)
+      input_ports[name]
+    end
+
+    # Find the input port identified by the given *name*.
+    def input_port(name)
+      raise NoSuchPortError.new("input port \"#{name}\" not found") unless input_ports.has_key?(name)
+      input_ports[name]
+    end
+
+    # Find the output port identified by the given *name*
+    def output_port?(name)
+      output_ports[name]
+    end
+
+    # Find the output port identified by the given *name*
+    def output_port(name)
+      raise NoSuchPortError.new("output port \"#{name}\" not found") unless output_ports.has_key?(name)
+      output_ports[name]
     end
 
     protected
+
+    def input_ports
+      @input_ports ||= {}
+    end
+
+    def output_ports
+      @output_ports ||= {}
+    end
 
     # Find or create an input port if necessary. If the given argument is nil,
     # an input port is created with a default name. Otherwise, an attempt to
@@ -137,28 +173,28 @@ module DEVS
       unless port.kind_of?(Port)
         name = port
         port = case type
-        when :output then @output_ports[name]
-        when :input then @input_ports[name]
+        when :output then output_ports[name]
+        when :input then input_ports[name]
         end
 
         if port.nil?
-          port = add_port(type, name)
+          port = create_port(type, name)
           DEVS.logger.warn("specified #{type} port #{name} doesn't exist for #{self}. creating it") if DEVS.logger
         end
       end
       port
     end
 
-    def add_port(type, *names)
+    def create_port(type, *names)
       ports = case type
-      when :input then @input_ports
-      when :output then @output_ports
+      when :input then input_ports
+      when :output then output_ports
       end
 
       new_ports = []
       i = 0
       while i < names.size
-        n = names[i].to_sym
+        n = names[i]
         if ports.has_key?(n)
           DEVS.logger.warn(
             "specified #{type} port #{n} already exists for #{self}. skipping..."
