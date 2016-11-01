@@ -30,7 +30,7 @@ module DEVS
       opts = {
         formalism: :pdevs,
         scheduler: :ladder_queue,
-        maintain_hierarchy: false,
+        maintain_hierarchy: true,
         run_validations: false,
         duration: DEVS::INFINITY
       }.merge(opts)
