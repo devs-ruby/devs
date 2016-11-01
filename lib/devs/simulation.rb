@@ -208,9 +208,9 @@ module DEVS
       if waiting?
         simulable = @namespace::Simulable
         start_time = begin_simulation
-        Hooks.notifier.publish(:before_simulation_initialization_hook)
+        Hooks.notifier.notify(:before_simulation_initialization_hook)
         self.time = simulable.initialize_state(@processor, self.time)
-        Hooks.notifier.publish(:after_simulation_initialization_hook)
+        Hooks.notifier.notify(:after_simulation_initialization_hook)
         while self.time < self.duration
           debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger && DEVS.logger.debug?
           self.time = simulable.step(@processor, self.time)
@@ -231,9 +231,9 @@ module DEVS
         if block_given?
           simulable = @namespace::Simulable
           start_time = begin_simulation
-          Hooks.notifier.publish(:before_simulation_initialization_hook)
+          Hooks.notifier.notify(:before_simulation_initialization_hook)
           self.time = simulable.initialize_state(@processor, self.time)
-          Hooks.notifier.publish(:after_simulation_initialization_hook)
+          Hooks.notifier.notify(:after_simulation_initialization_hook)
           while time < self.duration
             debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger && DEVS.logger.debug?
             self.time = simulable.step(@processor, self.time)
@@ -471,7 +471,7 @@ module DEVS
       @start_time = t
       info "*** Beginning simulation at #{@start_time} with duration: #{@duration}" if DEVS.logger
       @lock.unlock
-      Hooks.notifier.publish(:before_simulation_hook)
+      Hooks.notifier.notify(:before_simulation_hook)
       t
     end
 
@@ -489,7 +489,7 @@ module DEVS
         debug "* Running post simulation hook"
       end
 
-      Hooks.notifier.publish(:after_simulation_hook)
+      Hooks.notifier.notify(:after_simulation_hook)
     end
   end
 end

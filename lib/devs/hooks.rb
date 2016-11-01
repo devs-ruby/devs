@@ -1,28 +1,39 @@
 module DEVS
   module Hooks
+
     class << self
       def notifier
-        @notifier ||= Fanout.new
+        @notifier ||= Notifier.new
       end
 
-      # @see Fanout#subscribe
+      # @see Notifier#subscribe
       def subscribe(hook, instance=nil, method=nil, &block)
         self.notifier.subscribe(hook, instance, method, &block)
       end
 
+      # @see Notifier#unsubscribe
       def unsubscribe(hook, instance=nil, method=nil, &block)
         self.notifier.unsubscribe(hook, instance, method, &block)
       end
 
-      def publish(hook, *args)
-        self.notifier.publish(hook, *args)
+      # @see Notifier#notify
+      def notify(hook, *args)
+        self.notifier.notify(hook, *args)
       end
     end
 
-    class Fanout
-      def initialize
-        @listeners_for = Hash.new { |hash, key| hash[key] = [] }
+    # The {Notifier} provides a mechanism for broadcasting hooks during a
+    # simulation.
+    #
+    # Objects can register to hooks using the {#subscribe} method, either
+    # using blocks, or by specifying a method (which defaults to {#notify})
+    # which will handle the hook.
+    class Notifier
+
+      def listeners
+        @listeners ||= Hash.new { |hash, key| hash[key] = [] }
       end
+      private :listeners
 
       # Subscribes the given method or block to the specified hook
       #
@@ -30,35 +41,78 @@ module DEVS
       #   Subscribes the receiver of the given method to the specified hook
       #   @param hook [Symbol] the hook to subscribe to
       #   @param instance [Object] the receiver of the method
-      #   @param method [Symbol, String] the callback method
+      #   @param method [Symbol, String] the callback method, defaults to
+      #     :notify
       # @overload subscribe(hook, &block)
       #   Subscribes the given block to the specified hook
       #   @param hook [Symbol] the hook to subscribe to
-      def subscribe(hook, instance=nil, method=nil, &block)
-        @listeners_for[hook] << if block
+      def subscribe(hook, instance=nil, method = :notify, &block)
+        listeners[hook] << if block
           Subscriber.new(&block)
         else
-          Subscriber.new(instance, method || hook)
+          Subscriber.new(instance, method)
         end
       end
 
-      def unsubscribe(hook, instance=nil, method=nil, &block)
-        if block
-          @listeners_for[hook].delete_if { |s| s.block == block }
-        elsif method
-          @listeners_for[hook].delete_if do |s|
-            s.receiver == instance && s.method == method
-          end
+      # Unsubscribes the specified entry from listening to the specified hook.
+      def unsubscribe(hook, instance=nil, method = :notify)
+        if instance.is_a?(Proc)
+          @listeners.try { self[hook].reject! { |s|
+            s.block == instance && s.receiver == instance.binding.receiver
+          }} != nil
         else
-          @listeners_for[hook].delete_if { |s| s.receiver == instance }
+          @listeners.try { self[hook].reject! { |s|
+            s.receiver == instance && s.method == method
+          }} != nil
         end
       end
 
-      def publish(hook, *args)
-        @listeners_for[hook].each { |s| s.publish(*args) }
+      # @overload clear
+      #   Removes all entries from the notifier.
+      # @overload clear(hook)
+      #   Removes all entries that previously registered to the specified *hook*
+      #   from the notifier.
+      #   @param hook [Symbol] the hook to clear
+      def clear(hook = nil)
+        if hook
+          @listeners.try :delete, hook
+        else
+          @listeners.try :clear
+        end
+      end
+
+      # @overload count_listeners
+      #   Returns the total number of objects listening to hooks.
+      #   @return [Integer] the number of listeners
+      # @overload count_listeners(hook)
+      #   Returns the number of objects listening for the specified *hook*.
+      #   @param hook [Symbol] the hook to register
+      #   @return [Integer] the number of listeners
+      def count_listeners(hook = nil)
+        if hook
+          @listeners.try { self[hook].size }
+        else
+          @listeners.try { reduce(0) { |acc, tuple| acc + tuple[1].size }}
+        end
+      end
+
+      # Publish the given hook, so that each registered object in the receiver
+      # is notified.
+      def notify(hook, *args)
+        @listeners.try do
+          self[hook].reject! do |s|
+            begin
+              s.notify(hook, *args)
+              false
+            rescue
+              true # deletes the element in place since it raised
+            end
+          end
+        end
       end
     end
 
+    # @private
     class Subscriber
       attr_reader :receiver, :method, :block
 
@@ -72,7 +126,7 @@ module DEVS
         end
       end
 
-      def publish(*args)
+      def notify(*args)
         if @block
           @block.call(*args)
         else

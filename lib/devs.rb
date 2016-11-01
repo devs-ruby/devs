@@ -3,6 +3,7 @@ require 'logger'
 require 'observer'
 
 require 'active_support/concern'
+require 'active_support/core_ext/object/try'
 require 'active_model'
 
 # @author Romain Franceschini <franceschini.romain@gmail.com>
