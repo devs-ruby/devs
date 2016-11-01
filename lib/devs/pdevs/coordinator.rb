@@ -21,11 +21,8 @@ module DEVS
         end
 
         @scheduler.clear
-        if @scheduler.prefer_mass_reschedule?
-          @children.each { |c| @scheduler << c }
-        else
-          selected.each { |c| @scheduler << c }
-        end
+        list = @scheduler.prefer_mass_reschedule? ? @children : selected
+        list.each { |c| @scheduler << c }
 
         @time_last = max_time_last
         @time_next = min
@@ -43,7 +40,7 @@ module DEVS
           @scheduler.pop_simultaneous
         end
 
-        @parent_bag.clear
+        @parent_bag.clear unless @parent_bag.empty?
         i = 0
         while i < imm.size
           child = imm[i]
@@ -60,12 +57,12 @@ module DEVS
             j = 0
             ic = @model.internal_couplings(port)
             while j < ic.size
-              destination_port = ic[j]
-              receiver = destination_port.host.processor
+              dst = ic[j]
+              receiver = dst.host.processor
               if child.is_a?(Coordinator)
-                @influencees[receiver][destination_port].concat(payload)
+                @influencees[receiver][dst].concat(payload)
               else
-                @influencees[receiver][destination_port] << payload
+                @influencees[receiver][dst] << payload
               end
               @synchronize[receiver] = true
               j += 1
@@ -75,11 +72,11 @@ module DEVS
             j = 0
             oc = @model.output_couplings(port)
             while j < oc.size
-              port = oc[j]
+              dst = oc[j]
               if child.is_a?(Coordinator)
-                @parent_bag[port].concat(payload)
+                @parent_bag[dst].concat(payload)
               else
-                @parent_bag[port] << payload
+                @parent_bag[dst] << payload
               end
               j += 1
             end
@@ -91,14 +88,14 @@ module DEVS
       end
 
       def remainder(time, bag)
-        bag.each do |port, payload|
+        bag.each do |port, sub_bag|
           # check external input couplings to get children who receive sub-bag of y
           i = 0
           ic = @model.input_couplings(port)
           while i < ic.size
-            destination_port = ic[i]
-            receiver = destination_port.host.processor
-            @influencees[receiver][destination_port].concat(payload)
+            dst = ic[i]
+            receiver = dst.host.processor
+            @influencees[receiver][dst].concat(sub_bag)
             @synchronize[receiver] = true
             i += 1
           end
