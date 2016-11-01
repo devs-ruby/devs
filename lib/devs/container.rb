@@ -51,10 +51,12 @@ module DEVS
 
     # Deletes the specified child from children list
     #
-    # @param child [String,Symbol] the child to remove
-    # @return [Model] the deleted child
-    def remove_child(name)
-      children.delete(name)
+    # @param child [Model,String,Symbol] the child to remove
+    # @return [Model] the deleted child, or nil if no matching component is
+    #   found.
+    def remove_child(child)
+      child = child.name if child.is_a?(Model)
+      children.delete(child)
     end
 
     # Returns the children names
@@ -64,12 +66,29 @@ module DEVS
       children.keys
     end
 
-    # Find the component {Model} identified by the given <tt>name</tt>
+    # Retrieves the component {Model} identified by the given <tt>name</tt>
+    #
+    # @see #fetch_child
+    def [](name)
+      fetch_child(name)
+    end
+
+    # Retrieves the component {Model} identified by the given <tt>name</tt>.
     #
     # @param name [String, Symbol] the component name
     # @return [Model] the matching component, nil otherwise
-    def [](name)
-      children[name.to_sym]
+    def fetch_child?(name)
+      children[name]
+    end
+
+    # Retrieves the component {Model} identified by the given <tt>name</tt>.
+    #
+    # @param name [String, Symbol] the component name
+    # @return [Model] the matching component
+    # @raise [NoSuchChildError] if name doesn't match any component
+    def fetch_child(name, *args)
+      raise NoSuchChildError.new("no child named #{name}") unless children.has_key?(name)
+      children[name]
     end
 
     def has_child?(child)
@@ -248,12 +267,12 @@ module DEVS
       a = if p1.is_a?(Port) then p1.host
       elsif sender.is_a?(Coupleable) then sender
       elsif sender == @name then self
-      else self[sender]; end
+      else fetch_child(sender); end
 
       b = if p2.is_a?(Port) then p2.host
       elsif receiver.is_a?(Coupleable) then receiver
       elsif receiver == @name then self
-      else self[receiver]; end
+      else fetch_child(receiver); end
 
       if has_child?(a) && has_child?(b) # IC
         p1 = a.output_port(p1) unless p1.is_a?(Port)
@@ -291,7 +310,7 @@ module DEVS
     # @example
     #   attach_input :in, to: :in, of: :my_component
     def attach_input(myport, to:, of:)
-      receiver = of.is_a?(Coupleable) ? of : self[of]
+      receiver = of.is_a?(Coupleable) ? of : fetch_child(of)
       p1 = self.find_or_create_input_port_if_necessary(myport)
       p2 = receiver.find_or_create_input_port_if_necessary(to)
       attach(p1, to: p2)
@@ -311,7 +330,7 @@ module DEVS
     # @example
     #   attach_output :out, of: child, to: :out
     def attach_output(oport, of:, to:)
-      sender = of.is_a?(Coupleable) ? of : self[of]
+      sender = of.is_a?(Coupleable) ? of : fetch_child(of)
       p1 = sender.find_or_create_output_port_if_necessary(oport)
       p2 = self.find_or_create_output_port_if_necessary(to)
       attach(p1, to: p2)
@@ -351,12 +370,12 @@ module DEVS
       a = if p1.is_a?(Port) then p1.host
       elsif sender.is_a?(Coupleable) then sender
       elsif sender == @name then self
-      else self[sender]; end
+      else fetch_child(sender); end
 
       b = if p2.is_a?(Port) then p2.host
       elsif receiver.is_a?(Coupleable) then receiver
       elsif receiver == @name then self
-      else self[receiver]; end
+      else fetch_child(receiver); end
 
       if has_child?(a) && has_child?(b) # IC
         _internal_couplings[p1].delete(p2) != nil
@@ -383,7 +402,7 @@ module DEVS
     # @param child_port [Port, String, Symbol] specify the child's input port
     #   or its name.
     def add_external_input_coupling(child, input_port = nil, child_port = nil)
-      child = ensure_child(child)
+      child = fetch_child(child) unless child.is_a?(Model)
 
       if !input_port.nil? && !child_port.nil?
         input_port = find_or_create_input_port_if_necessary(input_port)
@@ -407,7 +426,7 @@ module DEVS
     # @param child_port [Port, String, Symbol] specify the child's output port
     #   or its name.
     def add_external_output_coupling(child, output_port = nil, child_port = nil)
-      child = ensure_child(child)
+      child = fetch_child(child) unless child.is_a?(Model)
 
       if !output_port.nil? && !child_port.nil?
         output_port = find_or_create_output_port_if_necessary(output_port)
@@ -418,7 +437,7 @@ module DEVS
     end
     alias_method :add_external_output, :add_external_output_coupling
 
-    # @deprecated Use {#attach} or {#attach} instead.
+    # @deprecated Use {#attach} instead.
     # Adds an internal coupling (IC) to self. Establish a relation between an
     # output {Port} of a first child and the input {Port} of a second child.
     #
@@ -434,8 +453,8 @@ module DEVS
     #   feedback loops are not allowed, i.e, no output port of a component may
     #   be connected to an input port of the same component
     def add_internal_coupling(a, b, output_port = nil, input_port = nil)
-      a = ensure_child(a)
-      b = ensure_child(b)
+      a = fetch_child(a) unless a.is_a?(Model)
+      b = fetch_child(b) unless b.is_a?(Model)
       raise FeedbackLoopError, "#{a} must be different than #{b}" if a.equal?(b)
 
       output_port = a.find_or_create_output_port_if_necessary(output_port)
@@ -447,43 +466,38 @@ module DEVS
     # @deprecated Use {#detach} instead.
     def remove_coupling(src, dst, src_port, dst_port)
       if src == @name || src == self
-        child = ensure_child(dst)
-        remove_input_coupling(@input_ports[src_port], child.input_ports[dst_port])
+        child = dst.is_a?(Model) ? dst : fetch_child(dst)
+        remove_input_coupling(input_ports(src_port), child.input_port(dst_port))
       elsif dst == @name || dst == self
-        child = ensure_child(src)
-        remove_output_coupling(child.output_ports[src_port], @output_ports[dst_port])
+        child = src.is_a?(Model) ? src : fetch_child(src)
+        remove_output_coupling(child.output_port(src_port), output_port(dst_port))
       else
-        a = ensure_child(src)
-        b = ensure_child(dst)
-        remove_internal_coupling(a.output_ports[src_port], b.input_ports[dst_port])
+        a = src.is_a?(Model) ? src : fetch_child(src)
+        b = dst.is_a?(Model) ? dst : fetch_child(dst)
+        remove_internal_coupling(a.output_port(src_port), b.input_port(dst_port))
       end
     end
 
     # @deprecated Use {#detach} instead.
     def remove_internal_coupling(src_port, dst_port)
-      couplings = @internal_couplings[src_port]
+      couplings = _internal_couplings[src_port]
       i = couplings.index { |port| port == dst_port }
       couplings.delete_at(i)
     end
 
     # @deprecated Use {#detach} instead.
     def remove_input_coupling(src_port, dst_port)
-      couplings = @input_couplings[src_port]
+      couplings = _input_couplings[src_port]
       i = couplings.index { |port| port == dst_port }
       couplings.delete_at(i)
     end
 
     # @deprecated Use {#detach} instead.
     def remove_output_coupling(src_port, dst_port)
-      couplings = @output_couplings[src_port]
+      couplings = _output_couplings[src_port]
       i = couplings.index { |port| port == dst_port }
       couplings.delete_at(i)
     end
 
-    def ensure_child(child)
-      child = self[child] unless child.is_a?(Model)
-      raise NoSuchChildError, "the child '#{child}' doesn't exist" if child.nil?
-      child
-    end
   end
 end

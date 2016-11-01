@@ -3,16 +3,20 @@ require "coupling_helper"
 
 describe "Coupler" do
   describe "component handling" do
-    describe "[]" do
-      it "gets nilable" do
-        MyCoupler.new("c")["component"].must_be_nil
+    describe "fetch" do
+      it "raises if component doesn't exist" do
+        assert_raises NoSuchChildError do
+          MyCoupler.new("c")["component"]
+        end
+
+        assert_raises NoSuchChildError do
+          MyCoupler.new("c").fetch_child("component")
+        end
       end
 
-      # it "raises if component doesn't exist" do
-      #   expect_raises NoSuchChildError do
-      #     MyCoupler.new("c")["component"]
-      #   end
-      # end
+      it "gets nilable" do
+        MyCoupler.new("c").fetch_child?("component").must_be_nil
+      end
     end
   end
 
