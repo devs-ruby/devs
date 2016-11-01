@@ -21,10 +21,6 @@ module DEVS
     # @param name [String, Symbol] the name of the model
     def initialize(name = nil)
       super(name)
-
-      @input_ports = {}
-      @output_ports = {}
-
       AtomicModel.counter += 1
       @name = :"#{self.class.name || 'AtomicModel'}#{AtomicModel.counter}" unless @name
       @bag = {}
@@ -87,45 +83,19 @@ module DEVS
       @bag
     end
 
-    # Finds and checks if the given port is an input port
-    #
-    # @api private
-    # @param port [Port, String, Symbol] the port or its name
-    # @return [Port] the matching port
-    # @raise [ArgumentError] if the given port is nil or doesn't exists
-    # @raise [InvalidPortHostError] if the given port doesn't belong to this
-    #   model
-    # @raise [InvalidPortTypeError] if the given port isn't an input port
-    def ensure_input_port(port)
-      raise ArgumentError, "port argument cannot be nil" if port.nil?
-      unless port.kind_of?(Port)
-        port = @input_ports[port]
-        raise ArgumentError, "the given port doesn't exists" if port.nil?
-      end
-      unless port.host == self
-        raise InvalidPortHostError, "The given port doesn't belong to this \
-        model"
-      end
-      unless port.input?
-        raise InvalidPortTypeError, "The given port isn't an input port"
-      end
-      port
-    end
-    protected :ensure_input_port
-
     # Finds and checks if the given port is an output port
     #
     # @api private
     # @param port [Port, String, Symbol] the port or its name
     # @return [Port] the matching port
-    # @raise [ArgumentError] if the given port is nil or doesn't exists
+    # @raise [NoSuchPortError] if the given port doesn't exists
     # @raise [InvalidPortHostError] if the given port doesn't belong to this
     #   model
     # @raise [InvalidPortTypeError] if the given port isn't an output port
     def ensure_output_port(port)
       raise ArgumentError, "port argument cannot be nil" if port.nil?
       unless port.kind_of?(Port)
-        port = @output_ports[port]
+        port = output_port(port)
         raise ArgumentError, "the given port doesn't exists" if port.nil?
       end
       unless port.host == self

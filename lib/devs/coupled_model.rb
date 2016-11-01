@@ -19,13 +19,9 @@ module DEVS
     def initialize(name = nil)
       super(name)
 
-      @input_ports = {}
-      @output_ports = {}
-
       CoupledModel.counter += 1
       @name = :"#{self.class.name || 'CoupledModel'}#{CoupledModel.counter}" unless @name
       initialize_coupleable
-      initialize_container
     end
 
     # Returns a boolean indicating if <tt>self</tt> is a coupled model
