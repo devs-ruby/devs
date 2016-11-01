@@ -2,6 +2,7 @@ module DEVS
   # This class represent the interface to the simulation
   class Simulation
     include Logging
+    include Enumerable
 
     attr_reader :duration, :time, :processor, :model
 
@@ -308,129 +309,37 @@ module DEVS
 
     # TODO Don't destruct the old hierarchy
     def direct_connect!
-      models = [@model]
+      models = @model.each_child.to_a
       children_list = []
-      reusable_internal_couplings = Hash.new { |h, k| h[k] = [] }
+      new_internal_couplings = Hash.new { |h, k| h[k] = [] }
 
       i = 0
-      while i < models.count
+      while i < models.size
         model = models[i]
         if model.coupled?
           # get internal couplings between atomics that we can reuse as-is in the root model
-          model.internal_couplings.each do |src, dest_ary|
-            if src.host.atomic?
-              reusable_internal_couplings[src].concat(dest_ary.select { |dst| dst.host.atomic? })
+          model.each_internal_coupling do |src, dst|
+            if src.host.atomic? && dst.host.atomic?
+              new_internal_couplings[src] << dst
             end
           end
-          models.concat(model.children.values)
+          model.each_child { |c| models << c }
         else
           children_list << model
         end
         i += 1
       end
 
-      children = @model.instance_variable_get(:@children).clear
-      children_list.each { |child| children[child.name] = child }
+      cm = @model
+      cm.each_child.each { |c| cm.remove_child(c) }
+      children_list.each { |c| cm << c }
 
-      new_couplings = reusable_internal_couplings.merge!(adjust_couplings!(@model, @model.internal_couplings)) { |src, ary, new_ary| ary.concat(new_ary) }
-      @model.instance_variable_set(:@internal_couplings, new_couplings)
-    end
-
-    def adjust_couplings!(cm, hash_couplings)
-      adjusted_couplings = Hash.new { |h, k| h[k] = [] }
-
-      couplings = []
-      #cm.input_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
-      cm.internal_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
-      #cm.output_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
-
-      i = 0
-      while i < couplings.size
-        osrc = couplings[i]
-        odst = couplings[i+1]
-        if osrc.host.atomic? && odst.host.atomic?
-          adjusted_couplings[osrc] << odst
-        elsif osrc.host.coupled? # eic
-          route = [osrc, odst]
-          j = 0
-          while j < route.size
-            rsrc = route[j]
-            rsrc.host.each_output_coupling_reverse(rsrc) do |src, dst|
-              if src.host.coupled?
-                route.push(src, dst)
-              else
-                couplings.push(src, odst)
-              end
-            end
-            j += 2
-          end
-        elsif odst.host.coupled? # eoc
-          route = [osrc,odst]
-          j = 0
-          while j < route.size
-            rdst = route[j+1]
-            rdst.host.each_input_coupling(rdst) do |src,dst|
-              if dst.host.coupled?
-                route.push(src, dst)
-              else
-                couplings.push(osrc, dst)
-              end
-            end
-            j += 2
-          end
-        end
-        i += 2
+      find_direct_couplings(cm) do |src, dst|
+        new_internal_couplings[src] << dst
       end
-      adjusted_couplings
-    end
 
-    def add_couplings_to_graph(graph, cm)
-      couplings = []
-      cm.input_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
-      cm.internal_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
-      cm.output_couplings.each { |s,ary| ary.each { |d| couplings << s << d }}
-
-      i = 0
-      while i < couplings.size
-        osrc = couplings[i]
-        odst = couplings[i+1]
-        if osrc.host.atomic? && odst.host.atomic?
-          graph.puts "\"#{osrc.host.name.to_s}\" -> \"#{odst.host.name.to_s}\" [label=\"#{osrc.name.to_s} → #{odst.name.to_s}\"];"
-          #edge = graph.edge(osrc.host.name.to_s, odst.host.name.to_s)
-          #edge.label "#{osrc.name.to_s} → #{odst.name.to_s}"
-        elsif osrc.host.coupled? # eic
-          route = [osrc, odst]
-          j = 0
-          while j < route.size
-            rsrc = route[j]
-            rsrc.host.each_output_coupling_reverse(rsrc) do |src, dst|
-              if src.host.coupled?
-                route.push(src, dst)
-              else
-                couplings.push(src, odst)
-              end
-            end
-            #rsrc.host.each_internal_coupling_reverse(rsrc, &blk)
-            j += 2
-          end
-        elsif odst.host.coupled? # eoc
-          route = [osrc,odst]
-          j = 0
-          while j < route.size
-            rdst = route[j+1]
-            rdst.host.each_input_coupling(rdst) do |src,dst|
-              if dst.host.coupled?
-                route.push(src, dst)
-              else
-                couplings.push(osrc, dst)
-              end
-            end
-            #rdst.host.each_internal_coupling(rdst, &blk)
-            j += 2
-          end
-        end
-        i += 2
-      end
+      internal_couplings = cm.instance_variable_get(:@internal_couplings).clear
+      internal_couplings.merge!(new_internal_couplings)
     end
 
     def fill_graph(graph, cm)
@@ -441,13 +350,9 @@ module DEVS
           graph.puts '{'
           graph.puts "label = \"#{name}\";"
           fill_graph(graph, model)
-          model.internal_couplings.each do |src, dest_ary|
-            if src.host.atomic?
-              dest_ary.each do |dst|
-                if dst.host.atomic?
-                  graph.puts "\"#{src.host.name.to_s}\" -> \"#{dst.host.name.to_s}\" [label=\"#{src.name.to_s} → #{dst.name.to_s}\"];"
-                end
-              end
+          model.each_internal_coupling do |src, dst|
+            if src.host.atomic? && dst.host.atomic?
+              graph.puts "\"#{src.host.name.to_s}\" -> \"#{dst.host.name.to_s}\" [label=\"#{src.name.to_s} → #{dst.name.to_s}\"];"
             end
           end
           graph.puts "};"
@@ -455,7 +360,52 @@ module DEVS
           graph.puts "\"#{name}\" [style=filled];"
         end
       end
-      add_couplings_to_graph(graph, cm) if cm == @model
+
+      find_direct_couplings(cm) do |src, dst|
+        graph.puts "\"#{src.host.name.to_s}\" -> \"#{dst.host.name.to_s}\" [label=\"#{src.name.to_s} → #{dst.name.to_s}\"];"
+      end if cm == @model
+    end
+
+    def find_direct_couplings(cm)
+      couplings = []
+      cm.each_coupling { |s,d| couplings << [s,d] }
+
+      i = 0
+      while i < couplings.size
+        osrc, odst = couplings[i]
+        if osrc.host.atomic? && odst.host.atomic?
+          yield(osrc, odst) # found direct coupling
+        elsif osrc.host.coupled? # eic
+          route = [[osrc, odst]]
+          j = 0
+          while j < route.size
+            rsrc, _ = route[j]
+            rsrc.host.each_output_coupling_reverse(rsrc) do |src, dst|
+              if src.host.coupled?
+                route.push([src, dst])
+              else
+                couplings.push([src, odst])
+              end
+            end
+            j += 1
+          end
+        elsif odst.host.coupled? # eoc
+          route = [[osrc,odst]]
+          j = 0
+          while j < route.size
+            _, rdst = route[j]
+            rdst.host.each_input_coupling(rdst) do |src,dst|
+              if dst.host.coupled?
+                route.push([src, dst])
+              else
+                couplings.push([osrc, dst])
+              end
+            end
+            j += 1
+          end
+        end
+        i += 1
+      end
     end
 
     def time=(v)
