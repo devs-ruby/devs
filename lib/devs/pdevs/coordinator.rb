@@ -51,6 +51,11 @@ module DEVS
           output = child.collect(time)
 
           output.each do |port, payload|
+            if child.is_a?(Simulator)
+              port.changed
+              port.notify_observers(port, payload)
+            end
+
             # check internal coupling to get children who receive sub-bag of y
             j = 0
             ic = @model.internal_couplings(port)
