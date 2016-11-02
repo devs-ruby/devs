@@ -209,20 +209,18 @@ module DEVS
       if waiting?
         simulable = @namespace::Simulable
         start_time = begin_simulation
-        Hooks.notifier.notify(:before_simulation_initialization_hook)
-        self.time = simulable.initialize_state(@processor, self.time)
-        Hooks.notifier.notify(:after_simulation_initialization_hook)
+        initialize_simulation
         while self.time < self.duration
           debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger && DEVS.logger.debug?
           self.time = simulable.step(@processor, self.time)
         end
         end_simulation
-      else
+      elsif DEVS.logger
         if running?
           error "The simulation already started at #{self.start_time} and is currently running."
         else
           error "The simulation is already done. Started at #{self.start_time} and finished at #{self.final_time} in #{elapsed_secs} secs."
-        end if DEVS.logger
+        end
       end
       self
     end
@@ -232,9 +230,7 @@ module DEVS
         if block_given?
           simulable = @namespace::Simulable
           start_time = begin_simulation
-          Hooks.notifier.notify(:before_simulation_initialization_hook)
-          self.time = simulable.initialize_state(@processor, self.time)
-          Hooks.notifier.notify(:after_simulation_initialization_hook)
+          initialize_simulation
           while time < self.duration
             debug "* Tick at: #{self.time}, #{Time.now - start_time} secs elapsed" if DEVS.logger && DEVS.logger.debug?
             self.time = simulable.step(@processor, self.time)
@@ -250,6 +246,21 @@ module DEVS
         else
           error "The simulation is already done. Started at #{self.start_time} and finished at #{self.final_time} in #{elapsed_secs} secs."
         end
+        nil
+      end
+    end
+
+    def step
+      simulable = @namespace::Simulable
+      if waiting?
+        initialize_simulation
+        begin_simulation
+        self.time
+      elsif running?
+        self.time = simulable.step(@processor, self.time)
+        end_simulation if done?
+        self.time
+      else
         nil
       end
     end
@@ -270,6 +281,13 @@ module DEVS
     end
 
     private
+
+    def initialize_simulation
+      simulable = @namespace::Simulable
+      Hooks.notifier.notify(:before_simulation_initialization_hook)
+      self.time = simulable.initialize_state(@processor, self.time)
+      Hooks.notifier.notify(:after_simulation_initialization_hook)
+    end
 
     def allocate_processors(coupled = @model)
       processor = coupled.class.processor_for(@namespace).new(coupled, scheduler: @scheduler, namespace: @namespace, run_validations: @run_validations)
