@@ -18,8 +18,19 @@ module DEVS
     # Returns a new {Simulation} instance.
     #
     # @param model [Model] the model hierarchy
-    # @param opts [Hash] simulation options
-    def initialize(model, opts={})
+    # @param scheduler [Symbol] the default scheduler to use
+    # @param maintain_hierarchy [true,false] flatten the hierarchy
+    # @param duration [Numeric] the duration of the simulation
+    # @param formalism [Symbol] the formalism to use
+    # @param run_validations [true,false] activate runtime model validations
+    def initialize(
+      model,
+      scheduler: :ladder_queue,
+      maintain_hierarchy: true,
+      duration: DEVS::INFINITY,
+      run_validations: false,
+      formalism: :pdevs
+    )
       @time = 0
       @lock = Mutex.new
       @model = if model.atomic?
@@ -28,21 +39,13 @@ module DEVS
         model
       end
 
-      opts = {
-        formalism: :pdevs,
-        scheduler: :ladder_queue,
-        maintain_hierarchy: true,
-        run_validations: false,
-        duration: DEVS::INFINITY
-      }.merge(opts)
-
-      @duration = opts[:duration]
-      @run_validations = opts[:run_validations]
-      self.namespace = opts[:formalism]
-      self.scheduler = opts[:scheduler]
+      @duration = duration
+      @run_validations = run_validations
+      self.namespace = formalism
+      self.scheduler = scheduler
 
       # TODO either forbid this feature with cdevs or add a warning when using cdevs
-      unless opts[:maintain_hierarchy]
+      unless maintain_hierarchy
         time = Time.now
         direct_connect!
         DEVS.logger.info "  * Flattened modeling tree in #{Time.now - time} secs" if DEVS.logger
@@ -320,7 +323,7 @@ module DEVS
       when :splay_tree then SplayTree
       when :calendar_queue then CalendarQueue
       else
-        DEVS.logger.warn("scheduler #{@opts[:scheduler]} unknown, defaults to LadderQueue") if DEVS.logger
+        DEVS.logger.warn("scheduler #{name} unknown, defaults to LadderQueue") if DEVS.logger
         LadderQueue
       end
     end

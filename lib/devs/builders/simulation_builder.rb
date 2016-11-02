@@ -3,17 +3,16 @@ module DEVS
     attr_accessor :duration
     attr_reader :model
 
-    def initialize(opts={}, &block)
-      @opts = {
-        formalism: :pdevs,
-        scheduler: :ladder_queue,
-        maintain_hierarchy: false,
-        generate_graph: false,
-        graph_file: 'model_hierarchy',
-        graph_format: 'png',
-        duration: DEVS::INFINITY
-      }.merge(opts)
-
+    # Returns a new {SimulationBuilder} instance
+    #
+    # @param model [Model] the model hierarchy
+    # @param scheduler [Symbol] the default scheduler to use
+    # @param maintain_hierarchy [true,false] flatten the hierarchy
+    # @param duration [Numeric] the duration of the simulation
+    # @param formalism [Symbol] the formalism to use
+    # @param run_validations [true,false] activate runtime model validations
+    def initialize(**kwargs, &block)
+      @opts = kwargs
       t1 = Time.now
       DEVS.logger.info("*** Building model hierarchy at #{t1}") if DEVS.logger
       @model = CoupledModel.new(:root_coupled_model)
@@ -31,18 +30,16 @@ module DEVS
       @opts[:scheduler] = name
     end
 
-    def generate_graph!(file = nil, format = nil)
-      @opts[:graph_file] = file if file
-      @opts[:graph_format] = format if format
-      @opts[:generate_graph] = true
-    end
-
     def maintain_hierarchy!
       @opts[:maintain_hierarchy] = true
     end
 
     def duration(duration)
       @opts[:duration] = duration
+    end
+
+    def run_validations!
+      @opts[:run_validations] = true
     end
   end
 end
