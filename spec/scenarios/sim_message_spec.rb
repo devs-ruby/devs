@@ -47,11 +47,8 @@ class PDEVSMsgTestFlat < CoupledModel
 
     self << @r << @g1 << @g2
 
-    attach(:out, to: :in, between: :G1, and: :R)
-    attach(:out, to: :in, between: :G2, and: :R)
-
-    #add_internal_coupling @g1, @r, :out, :in
-    #add_internal_coupling @g2, @r, :out, :in
+    attach(:out, to: :in, between: :g1, and: :r)
+    attach(:out, to: :in, between: :g2, and: :r)
   end
 end
 
@@ -126,15 +123,15 @@ describe "PDEVS message passing" do
         sim = Simulation.new(m, maintain_hierarchy: true)
         sim.simulate
 
-        m.r.ext_calls.must_eq(1)
-        m.r.int_calls.must_eq(0)
-        m.r.output_calls.must_eq(0)
+        m.r.ext_calls.must_equal(1)
+        m.r.int_calls.must_equal(0)
+        m.r.output_calls.must_equal(0)
 
-        m.g1.int_calls.must_eq(1)
-        m.g2.int_calls.must_eq(1)
+        m.g1.int_calls.must_equal(1)
+        m.g2.int_calls.must_equal(1)
 
-        m.g1.output_calls.must_eq(1)
-        m.g2.output_calls.must_eq(1)
+        m.g1.output_calls.must_equal(1)
+        m.g2.output_calls.must_equal(1)
       end
 
       it "with flattening" do
@@ -142,15 +139,15 @@ describe "PDEVS message passing" do
         sim = Simulation.new(m, maintain_hierarchy: false)
         sim.simulate
 
-        m.r.ext_calls.must_eq(1)
-        m.r.int_calls.must_eq(0)
-        m.r.output_calls.must_eq(0)
+        m.r.ext_calls.must_equal(1)
+        m.r.int_calls.must_equal(0)
+        m.r.output_calls.must_equal(0)
 
-        m.g1.int_calls.must_eq(1)
-        m.g2.int_calls.must_eq(1)
+        m.g1.int_calls.must_equal(1)
+        m.g2.int_calls.must_equal(1)
 
-        m.g1.output_calls.must_eq(1)
-        m.g2.output_calls.must_eq(1)
+        m.g1.output_calls.must_equal(1)
+        m.g2.output_calls.must_equal(1)
       end
     end
   end
