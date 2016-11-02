@@ -113,6 +113,20 @@ module DEVS
       output_ports.values
     end
 
+    # Calls given block once for each input port, passing that element as a
+    # parameter.
+    def each_input_port
+      return input_ports.enum_for(:each_value) unless block_given?
+      input_ports.each_value { |port| yield(port) }
+    end
+
+    # Calls given block once for each output port, passing that element as a
+    # parameter.
+    def each_output_port
+      return output_ports.enum_for(:each_value) unless block_given?
+      output_ports.each_value { |port| yield(port) }
+    end
+
     # Find the input port identified by the given *name*.
     def input_port?(name)
       input_ports[name]
