@@ -69,11 +69,11 @@ module EventCollisionCDEVS
     attr_reader :g, :r
     attr_reader :select_calls
 
-    def initialize
+    def initialize(r_klass = R)
       super("test_pdevs_delta_con")
       @select_calls = 0
 
-      @r = R.new :R
+      @r = r_klass.new :R
       @g = G.new :G
 
       self << @r << @g
@@ -197,8 +197,22 @@ describe "Event collision" do
       end
     end
 
-    # describe "internal event can be lost/or delayed after an external one" do
-    #   # TODO
-    # end
+    describe "an external event might" do
+      it "delay an internal event" do
+        m = EventCollisionCDEVS::Coupled.new(EventCollisionCDEVS::RDelayInternalEvent)
+        sim = Simulation.new(m, formalism: :cdevs)
+        sim.simulate
+
+        m.select_calls.must_equal 1
+      end
+
+      it "cancel an internal event" do
+        m = EventCollisionCDEVS::Coupled.new(EventCollisionCDEVS::RLoseInternalEvent)
+        sim = Simulation.new(m, formalism: :cdevs)
+        sim.simulate
+
+        m.select_calls.must_equal 1
+      end
+    end
   end
 end
