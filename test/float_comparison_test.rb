@@ -1,6 +1,4 @@
-require 'test_helper'
-require 'minitest/autorun'
-require 'devs'
+require "test_helper"
 
 class TestFloatComparison < MiniTest::Test
   def test_large_numbers
