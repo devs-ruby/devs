@@ -7,12 +7,12 @@ module DEVS
       end
 
       # @see Notifier#subscribe
-      def subscribe(hook, instance=nil, method=nil, &block)
+      def subscribe(hook, instance=nil, method=:notify, &block)
         self.notifier.subscribe(hook, instance, method, &block)
       end
 
       # @see Notifier#unsubscribe
-      def unsubscribe(hook, instance=nil, method=nil, &block)
+      def unsubscribe(hook, instance=nil, method=:notify, &block)
         self.notifier.unsubscribe(hook, instance, method, &block)
       end
 
