@@ -14,7 +14,6 @@ end
 require 'devs/version'
 require 'devs/logging'
 require 'devs/errors'
-require 'devs/linked_list'
 require 'devs/core_ext'
 require 'devs/port'
 require 'devs/attr_state'
