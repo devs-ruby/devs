@@ -26,16 +26,31 @@ module DEVS
       @model.define_singleton_method(:select, &block) if block
     end
 
+    def attach(p1, to:, between: nil, and: nil)
+      @model.attach(p1, to: to, between: between, and: binding.local_variable_get(:and))
+    end
+
+    def attach_input(myport, to:, of:)
+      @model.attach_input(myport, to: to, of: of)
+    end
+
+    def attach_output(oport, of:, to:)
+      @model.attach_output(oport, of: of, to: to)
+    end
+
+    # @deprecated Use {#attach} instead
     def plug(child, opts={})
       a, from = child.split('@')
       b, to = opts[:with].split('@')
       @model.add_internal_coupling(a.to_sym, b.to_sym, from.to_sym, to.to_sym)
     end
 
+    # @deprecated Use {#attach_output} instead
     def plug_output_port(port, opts={})
       plug_port(port, :output, opts)
     end
 
+    # @deprecated Use {#attach_input} instead
     def plug_input_port(port, opts={})
       plug_port(port, :input, opts)
     end
